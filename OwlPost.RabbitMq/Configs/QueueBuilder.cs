@@ -1,39 +1,18 @@
 ﻿namespace OwlPost.RabbitMq.Configs;
 
-internal class QueueExchange
+internal class QueueBuilder
 {
-
-    #region Fields and Ctor
-
-    private readonly ConnectionFactory _connectionFactory;
-    private readonly ChannelFactory _channelFactory;
-    private readonly ExchangeFactory _exchangeFactory;
-
-    internal QueueExchange()
-    {
-        _connectionFactory = new ConnectionFactory();
-        _channelFactory = new ChannelFactory(_connectionFactory);
-        _exchangeFactory = new ExchangeFactory();
-    }
-
-    #endregion
 
     private QueueDeclareOk? _messagingQueue;
 
-    internal async Task CreateMessageQueue()
+    internal async Task CreateQueueList(List<QueueOption> queueOptionList)
     {
-        var channel = await _channelFactory.GetChannelAsync();
-
         if (_messagingQueue is not null)
             return;
 
-        await _exchangeFactory.CreateMessagingExchange();
-
-        var queueOptions = MainConfig.QueueOptions;
-
-        foreach (var queueOption in queueOptions!)
+        foreach (var queueOption in queueOptionList!)
         {
-            _messagingQueue = await channel.QueueDeclareAsync(
+            _messagingQueue = await MainConfig.Channel!.QueueDeclareAsync(
             queue: queueOption.Name,
             durable: queueOption.Durable,
             exclusive: queueOption.Exclusive,
@@ -43,7 +22,7 @@ internal class QueueExchange
 
             Console.WriteLine($"Queue '{queueOption.Name}' created successfully.");
 
-            await channel.QueueBindAsync(
+            await MainConfig.Channel!.QueueBindAsync(
                 queue: queueOption.Name,
                 exchange: queueOption.Exchange.Name,
                 routingKey: queueOption.Name

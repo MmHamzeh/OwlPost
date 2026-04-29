@@ -1,10 +1,17 @@
 ﻿namespace OwlPost.RabbitMq.Models;
 
-internal class QueueOption
+public class QueueOption
 {
+    public QueueOption()
+    {
+        
+    }
+
     public QueueOption(ExchangeOption exchange)
     {
         Exchange = exchange;
+        Durable = exchange.Durable;
+        AutoDelete = exchange.AutoDelete;
     }
 
     public ExchangeOption Exchange { get; set; }

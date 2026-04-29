@@ -1,6 +1,11 @@
 ﻿namespace OwlPost.RabbitMq.Models;
 
-internal class ExchangeOption
+public class ExchangeOption
 {
-    public string Name { get; set; }
+    public required string Name { get; set; }
+    public required ExchangeTypeEnm ExchangeTypeEnm { get; set; }
+    public required bool Durable { get; set; }
+    public required bool AutoDelete { get; set; }
+    public IDictionary<string, object?>? Arguments { get; set; }
+
 }

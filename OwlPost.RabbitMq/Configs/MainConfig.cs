@@ -2,6 +2,7 @@
 
 internal static class MainConfig
 {
-    internal static List<ExchangeOption>? ExchangeOptions;
-    internal static List<QueueOption>? QueueOptions;
+    internal static IConnection? Connection { get; set; }
+    internal static IChannel? Channel { get; set; }
+
 }

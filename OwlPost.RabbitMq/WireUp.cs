@@ -1,33 +1,82 @@
-﻿namespace OwlPost.RabbitMq;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
-internal static class WireUp
+namespace OwlPost.RabbitMq;
+
+public static class WireUp
 {
-    internal static void CreateExchanges()
+    private static async Task SetupRabbit(
+        ConnectionOption connectionOption,
+        List<ExchangeOption> exchangeOptionList,
+        List<QueueOption> queueOptionList)
     {
-        MainConfig.ExchangeOptions =
+
+        var connectionBuilder = new ConnectionBuilder();
+        MainConfig.Connection = await connectionBuilder.GetRabbitConnection(connectionOption);
+
+        var channelBuilder = new ChannelBuilder();
+        MainConfig.Channel = await channelBuilder.GetChannelAsync();
+
+        var exchangeBuilder = new ExchangeBuilder();
+        await exchangeBuilder.CreateMessagingExchange(exchangeOptionList);
+
+        var queueBuilder = new QueueBuilder();
+        await queueBuilder.CreateQueueList(queueOptionList);
+
+    }
+
+
+    private static async Task SetupRabbit()
+    {
+        ConnectionOption connectionOption = new()
+        {
+            HostName = "localhost",
+            UserName = "guest",
+            Password = "guest"
+        };
+
+        List<ExchangeOption> exchangeOptionList =
         [
             new ExchangeOption()
             {
-                Name = "messaging.exchange"
-            }
-        ];
-    }
-
-    internal static void CreateQueues()
-    {
-        if (MainConfig.ExchangeOptions is null)
-            CreateExchanges();
-
-        MainConfig.QueueOptions =
-        [
-            new QueueOption(MainConfig.ExchangeOptions!.Single(e => e.Name == "messaging.exchange"))
-            {
-                Name = "messaging.queue",
+                Name = "messaging.exchange",
                 Durable = true,
                 AutoDelete = true,
-                Exclusive = false,
-                Arguments = null,
+                ExchangeTypeEnm = ExchangeTypeEnm.Direct,
             }
         ];
+
+        List<QueueOption> queueOptionList =
+        [
+            new QueueOption(exchangeOptionList.Single(e => e.Name.Equals("messaging.exchange")))
+            {
+                Name = "messaging.queue",
+                Exclusive = false,
+                Arguments = null
+            }
+        ];
+
+        await SetupRabbit(connectionOption, exchangeOptionList, queueOptionList);
     }
+
+    
+    public static void AddRabbitMq(this IServiceCollection services, IConfiguration configuration)
+    {
+        var rabbitMqSection = configuration.GetSection("RabbitMQ");
+
+        var connectionOption = JsonSerializer.Deserialize<ConnectionOption>
+            (rabbitMqSection.GetSection("Connection").Value!);
+
+        var exchangeOptionList = JsonSerializer.Deserialize<List<ExchangeOption>>
+            (rabbitMqSection.GetSection("Exchanges").Value!);
+
+        var queueOptionList = JsonSerializer.Deserialize<List<QueueOption>>
+            (rabbitMqSection.GetSection("Queues").Value!);
+
+        _ = SetupRabbit(connectionOption, exchangeOptionList, queueOptionList);
+    }
+
+
+
 }
