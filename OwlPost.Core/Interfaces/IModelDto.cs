@@ -14,7 +14,7 @@ public abstract class IModelDto : IDto<long>
         base.PrepareDto(currentUserId);
 
 
-        if (PublicId is null or PublicId.Value == Guid.Empty) //create
+        if (PublicId is null || PublicId.Value == Guid.Empty) //create
         {
             CreatedBy = currentUserId;
             CreatedOn = DateTime.Now;

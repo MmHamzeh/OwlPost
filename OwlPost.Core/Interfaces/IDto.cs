@@ -13,7 +13,7 @@ public abstract class IDto<T>
 
     public virtual void PrepareDto(T currentUserId)
     {
-        if (PublicId is null or PublicId.Value == Guid.Empty) //create
+        if (PublicId is null || PublicId == Guid.Empty) //create
         {
             PublicId = Guid.CreateVersion7();
         }

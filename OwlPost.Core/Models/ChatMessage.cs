@@ -1,6 +1,6 @@
 ﻿namespace OwlPost.Core.Models;
 
-internal class ChatMessage : IDbModel
+public class ChatMessage : IDbModel
 {
     #region IDbModel properties
 
