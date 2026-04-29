@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="OwlPost.Core/OwlPost.Core.csproj" />
+  <Project Path="OwlPost.RabbitMq/OwlPost.RabbitMq.csproj" />
+  <Project Path="OwlPost/OwlPost.csproj" />
+</Solution>
