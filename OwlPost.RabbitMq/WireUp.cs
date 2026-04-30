@@ -6,77 +6,96 @@ namespace OwlPost.RabbitMq;
 
 public static class WireUp
 {
-    private static async Task SetupRabbit(
-        ConnectionOption connectionOption,
-        List<ExchangeOption> exchangeOptionList,
-        List<QueueOption> queueOptionList)
+    public static void AddRabbitMq(this IServiceCollection services,
+        IConfiguration configuration)
     {
-
-        var connectionBuilder = new ConnectionBuilder();
-        MainConfig.Connection = await connectionBuilder.GetRabbitConnection(connectionOption);
-
-        var channelBuilder = new ChannelBuilder();
-        MainConfig.Channel = await channelBuilder.GetChannelAsync();
-
-        var exchangeBuilder = new ExchangeBuilder();
-        await exchangeBuilder.CreateMessagingExchange(exchangeOptionList);
-
-        var queueBuilder = new QueueBuilder();
-        await queueBuilder.CreateQueueList(queueOptionList);
-
-    }
-
-
-    private static async Task SetupRabbit()
-    {
-        ConnectionOption connectionOption = new()
+        var options = new Action<RabbitMqOptions>(opt =>
         {
-            HostName = "localhost",
-            UserName = "guest",
-            Password = "guest"
-        };
+            opt.Connection = GetConnectionOption(configuration);
+            opt.Exchange = GetExchangeOption(configuration);
+            opt.Queue = GetQueueOption(configuration);
+            opt.Channel = GetChannelOption(configuration);
+        });
 
-        List<ExchangeOption> exchangeOptionList =
-        [
-            new ExchangeOption()
-            {
-                Name = "messaging.exchange",
-                Durable = true,
-                AutoDelete = true,
-                ExchangeTypeEnm = ExchangeTypeEnm.Direct,
-            }
-        ];
-
-        List<QueueOption> queueOptionList =
-        [
-            new QueueOption(exchangeOptionList.Single(e => e.Name.Equals("messaging.exchange")))
-            {
-                Name = "messaging.queue",
-                Exclusive = false,
-                Arguments = null
-            }
-        ];
-
-        await SetupRabbit(connectionOption, exchangeOptionList, queueOptionList);
+        services.Configure(options);
+        AddServices(services);
     }
 
-    
-    public static void AddRabbitMq(this IServiceCollection services, IConfiguration configuration)
+    #region Private Methods
+
+    private static ConnectionOption GetConnectionOption(IConfiguration configuration)
     {
-        var rabbitMqSection = configuration.GetSection("RabbitMQ");
+        var json = configuration.GetSection("RabbitMQ:Connection")?.Value ?? string.Empty;
 
-        var connectionOption = JsonSerializer.Deserialize<ConnectionOption>
-            (rabbitMqSection.GetSection("Connection").Value!);
+        if (string.IsNullOrWhiteSpace(json))
+            throw new Exception("");
 
-        var exchangeOptionList = JsonSerializer.Deserialize<List<ExchangeOption>>
-            (rabbitMqSection.GetSection("Exchanges").Value!);
+        var connectionOption = JsonSerializer.Deserialize<ConnectionOption>(json);
 
-        var queueOptionList = JsonSerializer.Deserialize<List<QueueOption>>
-            (rabbitMqSection.GetSection("Queues").Value!);
+        if (connectionOption == null)
+            throw new Exception("");
 
-        _ = SetupRabbit(connectionOption, exchangeOptionList, queueOptionList);
+        return connectionOption;
+    }
+
+    private static List<ExchangeOption> GetExchangeOption(IConfiguration configuration)
+    {
+        var json = configuration.GetSection("RabbitMQ:Exchanges")?.Value ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(json))
+            throw new Exception("");
+
+        var exchangeOptionList = JsonSerializer.Deserialize<List<ExchangeOption>>(json);
+
+        if (exchangeOptionList == null)
+            throw new Exception("");
+
+        return exchangeOptionList;
+    }
+
+    private static List<QueueOption> GetQueueOption(IConfiguration configuration)
+    {
+        var json = configuration.GetSection("RabbitMQ:Queues")?.Value ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(json))
+            throw new Exception("");
+
+        var queueOptionList = JsonSerializer.Deserialize<List<QueueOption>>(json);
+
+        if (queueOptionList == null)
+            throw new Exception("");
+
+        return queueOptionList;
+    }
+
+    private static ChannelOption GetChannelOption(IConfiguration configuration)
+    {
+        var json = configuration.GetSection("RabbitMQ:ChannelOption")?.Value ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(json))
+            throw new Exception("");
+
+        var channelOption = JsonSerializer.Deserialize<ChannelOption>(json);
+
+        if (channelOption == null)
+            throw new Exception("");
+
+        return channelOption;
     }
 
 
+    private static void AddServices(IServiceCollection services)
+    {
+
+        services.AddSingleton<IRabbitMqConnectionBuilder, RabbitMqConnectionBuilder>();
+        services.AddSingleton<IRabbitMqExchangeBuilder, RabbitMqExchangeBuilder>();
+        services.AddSingleton<IRabbitMqQueueBuilder, RabbitMqQueueBuilder>();
+
+        services.AddSingleton<IMessageBus, MessageBus>();
+
+        services.AddHostedService<MessageConsumer>();
+    }
+
+    #endregion
 
 }
