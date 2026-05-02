@@ -1,6 +1,6 @@
 ﻿namespace OwlPost.RabbitMq.Contracts;
 
-internal interface IRabbitMqExchangeBuilder : IAsyncDisposable
+internal interface IRabbitMqExchangeManagement : IAsyncDisposable
 {
     ValueTask DeclareExchanges();
 

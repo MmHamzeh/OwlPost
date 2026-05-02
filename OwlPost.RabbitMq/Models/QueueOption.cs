@@ -7,7 +7,7 @@ public class QueueOption
         
     }
 
-    public QueueOption(ExchangeOption exchange)
+    public QueueOption(ExchangeOption exchange) : this() 
     {
         Exchange = exchange;
         Durable = exchange.Durable;

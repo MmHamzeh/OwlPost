@@ -1,6 +1,6 @@
 ﻿namespace OwlPost.RabbitMq.Contracts;
 
-public interface IRabbitMqConnectionBuilder : IAsyncDisposable
+public interface IRabbitMqConnectionManagement : IAsyncDisposable
 {
     ValueTask<IConnection> GetConnectionAsync();
     ValueTask<IChannel> GetChannelAsync();

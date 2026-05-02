@@ -1,22 +1,19 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+﻿namespace OwlPost.RabbitMq.Services;
 
-namespace OwlPost.RabbitMq.Services;
-
-internal class RabbitMqConnectionBuilder : IRabbitMqConnectionBuilder
+internal sealed class RabbitMqConnectionManagement : IRabbitMqConnectionManagement
 {
-    private readonly ILogger<RabbitMqConnectionBuilder> _logger;
+    private readonly ILogger<RabbitMqConnectionManagement> _logger;
     private readonly ConnectionFactory _factory;
     private IConnection? _connection;
     private IChannel? _channel;
     private readonly SemaphoreSlim _sync = new(1, 1);
-    private readonly RabbitMqOptions rabbitMqOptions;
+    private readonly RabbitMqOptions _rabbitMqOptions;
 
-    public RabbitMqConnectionBuilder(ILogger<RabbitMqConnectionBuilder> logger, IOptions<RabbitMqOptions> options)
+    public RabbitMqConnectionManagement(ILogger<RabbitMqConnectionManagement> logger, IOptions<RabbitMqOptions> options)
     {
         _logger = logger;
 
-        rabbitMqOptions = options.Value;
+        _rabbitMqOptions = options.Value;
 
         var connectionOption = options.Value.Connection;
 
@@ -42,8 +39,12 @@ internal class RabbitMqConnectionBuilder : IRabbitMqConnectionBuilder
 
             _connection?.Dispose();
 
+            var connectionOption = _rabbitMqOptions.Connection;
+
             _connection = await _factory.CreateConnectionAsync();
-            _logger.LogInformation("RabbitMQ connection established.");
+            _logger.LogInformation("RabbitMQ connection established to {Host}:{Port}.",
+                connectionOption.HostName,
+                connectionOption.Port);
             return _connection!;
         }
         finally
@@ -65,7 +66,9 @@ internal class RabbitMqConnectionBuilder : IRabbitMqConnectionBuilder
             if (_channel is { IsOpen: true })
                 return _channel!;
 
-            var channelOption = rabbitMqOptions.Channel;
+            _channel?.Dispose();
+
+            var channelOption = _rabbitMqOptions.Channel;
 
             var opt = new CreateChannelOptions
             (
@@ -75,7 +78,8 @@ internal class RabbitMqConnectionBuilder : IRabbitMqConnectionBuilder
 
             _channel = await connection.CreateChannelAsync(opt);
 
-            _channel.ContinuationTimeout = channelOption.ContinuationTimeout ?? channelOption.DefaultContinuationTimeout;
+            _channel.ContinuationTimeout =
+                channelOption.ContinuationTimeout ?? channelOption.DefaultContinuationTimeout;
 
             _logger.LogInformation("RabbitMQ channel created.");
             return _channel!;

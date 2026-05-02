@@ -1,17 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+﻿namespace OwlPost.RabbitMq.Services;
 
-namespace OwlPost.RabbitMq.Services;
-
-internal class RabbitMqExchangeBuilder : IRabbitMqExchangeBuilder
+internal class RabbitMqExchangeManagement : IRabbitMqExchangeManagement
 {
-    private readonly ILogger<RabbitMqExchangeBuilder> _logger;
-    private readonly IRabbitMqConnectionBuilder _rabbitMqConnection;
+    private readonly ILogger<RabbitMqExchangeManagement> _logger;
+    private readonly IRabbitMqConnectionManagement _rabbitMqConnection;
     private readonly RabbitMqOptions _rabbitMqOptions;
     private readonly SemaphoreSlim _sync = new(1, 1);
     private IChannel? _channel;
 
-    internal RabbitMqExchangeBuilder(ILogger<RabbitMqExchangeBuilder> logger, IOptions<RabbitMqOptions> options, IRabbitMqConnectionBuilder rabbitMqConnection)
+    internal RabbitMqExchangeManagement(ILogger<RabbitMqExchangeManagement> logger, IOptions<RabbitMqOptions> options, IRabbitMqConnectionManagement rabbitMqConnection)
     {
         _logger = logger;
         _rabbitMqOptions = options.Value;

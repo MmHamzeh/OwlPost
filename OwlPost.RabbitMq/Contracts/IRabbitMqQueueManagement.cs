@@ -1,6 +1,6 @@
 ﻿namespace OwlPost.RabbitMq.Contracts;
 
-internal interface IRabbitMqQueueBuilder : IAsyncDisposable
+internal interface IRabbitMqQueueManagement : IAsyncDisposable
 {
     ValueTask DeclareQueues();
 

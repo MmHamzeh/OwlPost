@@ -1,8 +1,7 @@
 ﻿namespace OwlPost.Core.ServicesContract;
 
-public interface IMessageBus 
+public interface IMessageBus
 {
-    Task PublishAsync<T>(T message, string routingKey);
-
-    Task PublishAsync<T>(T message, string exchange, string routingKey, bool isPersistent);
+    Task PublishAsync<T>(IMessageBusRequest request,
+        CancellationToken cancellationToken = default) where T : IMessageBusResponse;
 }

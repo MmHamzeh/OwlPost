@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace OwlPost.RabbitMq;
 
-public static class WireUp
+public static class OwlPostRabbitMqExtension
 {
     public static void AddRabbitMq(this IServiceCollection services,
         IConfiguration configuration)
@@ -87,9 +87,9 @@ public static class WireUp
     private static void AddServices(IServiceCollection services)
     {
 
-        services.AddSingleton<IRabbitMqConnectionBuilder, RabbitMqConnectionBuilder>();
-        services.AddSingleton<IRabbitMqExchangeBuilder, RabbitMqExchangeBuilder>();
-        services.AddSingleton<IRabbitMqQueueBuilder, RabbitMqQueueBuilder>();
+        services.AddSingleton<IRabbitMqConnectionManagement, RabbitMqConnectionManagement>();
+        services.AddSingleton<IRabbitMqExchangeManagement, RabbitMqExchangeManagement>();
+        services.AddSingleton<IRabbitMqQueueManagement, RabbitMqQueueManagement>();
 
         services.AddSingleton<IMessageBus, MessageBus>();
 
