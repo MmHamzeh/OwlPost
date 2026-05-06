@@ -1,4 +1,4 @@
-﻿namespace OwlPost.Core.ServicesContract;
+﻿namespace OwlPost.Core.Interfaces;
 
 public interface IMessageBusRequest
 {
@@ -7,8 +7,6 @@ public interface IMessageBusRequest
 
 
     public string MessageContent { get; set; }
-    public string Exchange { get; set; }
-    public string RoutingKey { get; set; }
     public bool IsPersistent { get; set; }
 
 }

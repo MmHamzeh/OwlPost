@@ -2,5 +2,6 @@
   <Project Path="OwlPost.Core/OwlPost.Core.csproj" />
   <Project Path="OwlPost.RabbitMq/OwlPost.RabbitMq.csproj" />
   <Project Path="OwlPost.SignalR/OwlPost.SignalR.csproj" Id="68c53377-5e7f-4aac-83b7-dd55e0f10ea1" />
+  <Project Path="OwlPost.Sql/OwlPost.Sql.csproj" Id="d629d867-ad88-43ba-b19f-61d2212af3ff" />
   <Project Path="OwlPost/OwlPost.csproj" />
 </Solution>

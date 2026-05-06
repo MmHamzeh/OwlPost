@@ -27,6 +27,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OwlPost.Core\OwlPost.Core.csproj" />
+    <ProjectReference Include="..\OwlPost.RabbitMq\OwlPost.RabbitMq.csproj" />
+    <ProjectReference Include="..\OwlPost.Sql\OwlPost.Sql.csproj" />
   </ItemGroup>
 
 </Project>

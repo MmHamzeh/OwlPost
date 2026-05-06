@@ -3,6 +3,7 @@ using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
 using OwlPost.Core.Models;
+using OwlPost.Core.RepositoriesContract;
 
 namespace OwlPost.RabbitMq.Services;
 
@@ -14,17 +15,18 @@ internal class MessageConsumer : BackgroundService
     private readonly IRabbitMqConnectionManagement _connection;
     private readonly RabbitMqOptions _options;
     private IChannel? _channel;
-    private readonly IMessageRepository _messageRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     internal MessageConsumer(
         ILogger<MessageConsumer> logger,
         IRabbitMqConnectionManagement connection,
-        IOptions<RabbitMqOptions> options, IMessageRepository messageRepository)
+        IOptions<RabbitMqOptions> options,
+        IUnitOfWork unitOfWork)
     {
         _logger = logger;
         _connection = connection;
         _options = options.Value;
-        _messageRepository = messageRepository;
+        _unitOfWork = unitOfWork;
     }
 
     #endregion
@@ -71,7 +73,6 @@ internal class MessageConsumer : BackgroundService
                     _logger.LogError(ex,
                         "Error processing message from queue {Queue}",
                         queue.Name);
-
                     await _channel.BasicNackAsync(
                         deliveryTag: ea.DeliveryTag,
                         multiple: false,
@@ -84,15 +85,13 @@ internal class MessageConsumer : BackgroundService
 
     private async Task ProcessMessageAsync(string json, CancellationToken ct)
     {
-        // TODO: deserialize message and handle it
-        // save message to database
-
         var chatMessage = JsonSerializer.Deserialize<ChatMessage>(json);
 
         if (chatMessage is null)
             throw new Exception();
 
-        _ = await _messageRepository.Add(chatMessage);
+        await _unitOfWork.MessageRepository.Add(chatMessage, ct);
+        _ = await _unitOfWork.SaveChanges(ct);
 
         await Task.CompletedTask;
     }

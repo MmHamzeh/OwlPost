@@ -1,5 +1,8 @@
-﻿global using Microsoft.Extensions.Logging;
+﻿// Global using directives
+
+global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
+global using OwlPost.Core.Interfaces;
 global using OwlPost.Core.ServicesContract;
 global using OwlPost.RabbitMq.Contracts;
 global using OwlPost.RabbitMq.Models;

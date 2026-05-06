@@ -1,3 +1,5 @@
-﻿global using OwlPost.Core.Enums;
+﻿// Global using directives
+
+global using OwlPost.Core.Enums;
 global using OwlPost.Core.Interfaces;
 global using OwlPost.Core.Models;

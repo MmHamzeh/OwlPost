@@ -7,5 +7,4 @@ public interface IDbModel : IDbTable<long>
     public long? ModifiedBy { get; set; }
     public DateTime? ModifiedOn { get; set; }
 
-    public bool IsDeleted { get; set; }
 }

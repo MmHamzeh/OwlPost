@@ -14,7 +14,7 @@ internal class MessageBus : IMessageBus
         _rabbitMqConnection = rabbitMqConnection;
     }
 
-    public async Task PublishAsync<T>(IMessageBusRequest request,
+    public async Task PublishMessageAsync<T>(IMessageBusRequest request,
         CancellationToken cancellationToken = default) where T : IMessageBusResponse
     {
         var channel = await _rabbitMqConnection.GetChannelAsync();
@@ -32,8 +32,8 @@ internal class MessageBus : IMessageBus
         };
 
         await channel.BasicPublishAsync(
-            exchange: request.Exchange,
-            routingKey: request.RoutingKey,
+            exchange: "chat.exchange",
+            routingKey: "chat.routingKey",
             mandatory: false,
             basicProperties: props,
             body: body,

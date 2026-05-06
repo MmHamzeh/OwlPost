@@ -8,7 +8,6 @@ public class ChatMessage : IDbModel
     public DateTime CreatedOn { get; set; }
     public long? ModifiedBy { get; set; }
     public DateTime? ModifiedOn { get; set; }
-    public bool IsDeleted { get; set; }
     public long Id { get; set; }
     public Guid PublicId { get; set; }
 
