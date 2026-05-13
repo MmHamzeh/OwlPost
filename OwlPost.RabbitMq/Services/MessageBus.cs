@@ -5,11 +5,11 @@ namespace OwlPost.RabbitMq.Services;
 
 internal class MessageBus : IMessageBus
 {
-    private readonly ILogger<ExchangeManager> _logger;
+    private readonly IAppLogger<ExchangeManager> _logger;
     private readonly IChannelManager _channelManager;
     private IChannel? _channel;
 
-    internal MessageBus(ILogger<ExchangeManager> logger, IChannelManager channelManager)
+    internal MessageBus(IAppLogger<ExchangeManager> logger, IChannelManager channelManager)
     {
         _logger = logger;
         _channelManager = channelManager;
