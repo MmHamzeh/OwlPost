@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using OwlPost.Core.Models;
+using OwlPost.Core.RepositoriesContract;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
-using OwlPost.Core.Models;
-using OwlPost.Core.RepositoriesContract;
 
 namespace OwlPost.RabbitMq.Services;
 
@@ -13,26 +14,31 @@ internal class MessageConsumer : BackgroundService
 
     private readonly IAppLogger<MessageConsumer> _logger;
     private readonly IChannelManager _channelManager;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly RabbitMqOptions _options;
     private readonly uint _prefetchSize;
     private readonly ushort _prefetchCount;
-
-    private IChannel? _channel;
+    private readonly IDictionary<string, IChannel> _channelsPerQueue;
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     internal MessageConsumer(
         IAppLogger<MessageConsumer> logger,
         IChannelManager channelManager,
         IOptions<RabbitMqOptions> options,
-        IUnitOfWork unitOfWork)
+        IServiceScopeFactory scopeFactory)
     {
         _logger = logger;
         _channelManager = channelManager;
-        _unitOfWork = unitOfWork;
+        _scopeFactory = scopeFactory;
         _options = options.Value;
+        _channelsPerQueue = new Dictionary<string, IChannel>(_options.Queue.Count);
 
-        _prefetchSize = _options.Channel.PrefetchSize;
+        _prefetchSize = 0; //_options.Channel.PrefetchSize;
         _prefetchCount = _options.Channel.PrefetchCount;
+
 
     }
 
@@ -41,70 +47,127 @@ internal class MessageConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        _channel ??= await _channelManager.GetChannelAsync();
+        foreach (var queue in _options.Queue)
+        {
+            _channelsPerQueue.Add(queue.Name, await _channelManager.GetChannelAsync());
+        }
 
-        if (_channel is null || !_channel.IsOpen)
+        #region Consume Messages Action
+
+        var tasks = _options.Queue
+            .Select(queue => ConsumeQueue(queue.Name, ct));
+
+        await Task.WhenAll(tasks);
+
+
+        #endregion
+
+        await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+    }
+
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        await Task.WhenAll(
+            _channelsPerQueue.Values.Select(async channel =>
+            {
+                try
+                {
+                    if (channel.IsOpen)
+                        await channel.CloseAsync(cancellationToken);
+
+                    await channel.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "Error closing RabbitMQ channel");
+                }
+            }));
+
+        await base.StopAsync(cancellationToken);
+    }
+
+
+    #region Private Methods
+
+    private async Task ConsumeQueue(string queueName, CancellationToken ct)
+    {
+        var channel = _channelsPerQueue[queueName];
+
+        if (channel is null || !channel.IsOpen)
             throw new Exception("Channel is not accessible");
 
-        while (!ct.IsCancellationRequested)
+        await channel.BasicQosAsync(
+            prefetchSize: _prefetchSize,
+            prefetchCount: _prefetchCount,
+            global: false,
+            ct);
+
+        var consumer = new AsyncEventingBasicConsumer(channel);
+
+        consumer.ReceivedAsync += async (sender, ea) =>
         {
-            foreach (var queue in _options.Queue)
+            var consumerChannel = ((AsyncEventingBasicConsumer)sender).Channel;
+
+            try
             {
-                await _channel.BasicQosAsync(
-                    prefetchSize: _prefetchSize,
-                    prefetchCount: _prefetchCount,
-                    global: false,
+                var body = ea.Body.ToArray();
+                var json = Encoding.UTF8.GetString(body);
+
+                _logger.LogDebug(
+                    "Message received from {Queue}: {Message}",
+                    queueName,
+                    json);
+
+                await ProcessMessageAsync(json);
+
+                await consumerChannel.BasicAckAsync(
+                    deliveryTag: ea.DeliveryTag,
+                    multiple: false,
                     ct);
-
-                var consumer = new AsyncEventingBasicConsumer(_channel);
-
-                consumer.ReceivedAsync += async (sender, ea) =>
-                {
-                    try
-                    {
-                        var body = ea.Body.ToArray();
-                        var json = Encoding.UTF8.GetString(body);
-
-                        _logger.LogDebug(
-                            "Message received from {Queue}: {Message}",
-                            queue.Name,
-                            json);
-
-                        await ProcessMessageAsync(json, ct);
-
-                        await _channel.BasicAckAsync(
-                            deliveryTag: ea.DeliveryTag,
-                            multiple: false,
-                            ct);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex,
-                            "Error processing message from queue {Queue}",
-                            queue.Name);
-
-                        await _channel.BasicNackAsync(
-                            deliveryTag: ea.DeliveryTag,
-                            multiple: false,
-                            requeue: false,
-                            ct);
-                    }
-                };
             }
-        }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error processing message from queue {Queue}",
+                    queueName);
+
+                await consumerChannel.BasicNackAsync(
+                    deliveryTag: ea.DeliveryTag,
+                    multiple: false,
+                    requeue: false,
+                    ct);
+            }
+        };
+
+        await channel.BasicConsumeAsync(
+            queue: queueName,
+            autoAck: false,
+            consumer: consumer,
+            consumerTag: $"consumer-{Environment.MachineName}-{queueName}",
+            cancellationToken: ct);
     }
 
-    private async Task ProcessMessageAsync(string json, CancellationToken ct)
+    private async Task ProcessMessageAsync(string json)
     {
-        var chatMessage = JsonSerializer.Deserialize<ChatMessage>(json);
+        if (string.IsNullOrWhiteSpace(json))
+            throw new InvalidOperationException("Received empty message payload");
+
+        var chatMessage = JsonSerializer.Deserialize<ChatMessage>(json, _jsonOptions);
 
         if (chatMessage is null)
-            throw new Exception();
+            throw new InvalidOperationException("Failed to deserialize ChatMessage");
 
-        await _unitOfWork.MessageRepository.Add(chatMessage, ct);
-        _ = await _unitOfWork.SaveChanges(ct);
+        await using var scope = _scopeFactory.CreateAsyncScope();
 
-        await Task.CompletedTask;
+        var unitOfWork =
+            scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        await unitOfWork.MessageRepository.Add(chatMessage, saveChanges: true, CancellationToken.None);
+
     }
+
+    #endregion
 
 }

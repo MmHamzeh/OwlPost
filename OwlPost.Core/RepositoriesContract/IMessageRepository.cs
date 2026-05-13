@@ -2,5 +2,5 @@
 
 public interface IMessageRepository
 {
-    Task Add(ChatMessage message, CancellationToken ct);
+    Task Add(ChatMessage message, bool saveChanges, CancellationToken ct);
 }
