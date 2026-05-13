@@ -1,6 +1,6 @@
 ﻿namespace OwlPost.RabbitMq.Models;
 
-public enum ExchangeTypeEnm
+internal enum ExchangeTypeEnm
 {
     Direct,
     Fanout,

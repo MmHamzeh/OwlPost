@@ -1,14 +1,12 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OwlPost.Core.Models;
-using OwlPost.Core.RepositoriesContract;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
 
 namespace OwlPost.RabbitMq.Services;
 
-internal class MessageConsumer : BackgroundService
+internal sealed class MessageConsumer : BackgroundService
 {
     #region Fields and Ctor
 
@@ -19,7 +17,7 @@ internal class MessageConsumer : BackgroundService
     private readonly uint _prefetchSize;
     private readonly ushort _prefetchCount;
     private readonly IDictionary<string, IChannel> _channelsPerQueue;
-    private static readonly JsonSerializerOptions _jsonOptions = new()
+    private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
@@ -36,10 +34,8 @@ internal class MessageConsumer : BackgroundService
         _options = options.Value;
         _channelsPerQueue = new Dictionary<string, IChannel>(_options.Queue.Count);
 
-        _prefetchSize = 0; //_options.Channel.PrefetchSize;
+        _prefetchSize = _options.Channel.PrefetchSize;
         _prefetchCount = _options.Channel.PrefetchCount;
-
-
     }
 
     #endregion
@@ -116,9 +112,8 @@ internal class MessageConsumer : BackgroundService
                 var json = Encoding.UTF8.GetString(body);
 
                 _logger.LogDebug(
-                    "Message received from {Queue}: {Message}",
-                    queueName,
-                    json);
+                    "Message received from {Queue}",
+                    queueName);
 
                 await ProcessMessageAsync(json);
 

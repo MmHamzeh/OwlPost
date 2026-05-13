@@ -1,10 +1,10 @@
 ﻿namespace OwlPost.RabbitMq.Models;
 
-public class QueueOption
+internal sealed class QueueOption
 {
     #region Fields and Ctor
 
-    public QueueOption(ExchangeOption exchange, string routingKey)
+    internal QueueOption(ExchangeOption exchange, string routingKey)
     {
         Exchange = exchange;
         Durable = exchange.Durable;
@@ -15,14 +15,14 @@ public class QueueOption
 
     #endregion
 
-    public ExchangeOption Exchange { get; private set; }
+    internal ExchangeOption Exchange { get; private set; }
 
-    public required string Name { get; init; }
-    public bool Durable { get; init; }
-    public bool Exclusive { get; init; }
-    public bool AutoDelete { get; init; }
-    public IDictionary<string, object?>? Arguments { get; set; }
-    public string RoutingKey => string.IsNullOrWhiteSpace(field) ? Name : field;
+    internal required string Name { get; init; }
+    internal bool Durable { get; init; }
+    internal bool Exclusive { get; init; }
+    internal bool AutoDelete { get; init; }
+    internal IDictionary<string, object?>? Arguments { get; set; }
+    internal string RoutingKey => string.IsNullOrWhiteSpace(field) ? Name : field;
 
 
 }

@@ -85,7 +85,7 @@ internal class QueueManager : IQueueManager
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error closing RabbitMQ resources.");
+            _logger.LogError(ex, "Error closing RabbitMQ resources.");
         }
         finally
         {

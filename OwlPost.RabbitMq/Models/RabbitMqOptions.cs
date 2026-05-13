@@ -1,9 +1,9 @@
 ﻿namespace OwlPost.RabbitMq.Models;
 
-internal class RabbitMqOptions
+internal sealed class RabbitMqOptions
 {
-    internal ConnectionOption Connection { get; set; }
-    internal ChannelOption Channel { get; set; }
-    internal List<ExchangeOption> Exchange { get; set; }
-    internal List<QueueOption> Queue { get; set; }
+    internal required ConnectionOption Connection { get; set; }
+    internal required ChannelOption Channel { get; set; }
+    internal required List<ExchangeOption> Exchange { get; set; }
+    internal required List<QueueOption> Queue { get; set; }
 }

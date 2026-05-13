@@ -129,6 +129,7 @@ public static class OwlPostRabbitMqExtension
 
         services.AddSingleton<IMessageBus, MessageBus>();
 
+        services.AddHostedService<RabbitMqInitializer>();
         services.AddHostedService<MessageConsumer>();
     }
 
