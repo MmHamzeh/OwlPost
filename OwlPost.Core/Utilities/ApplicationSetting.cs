@@ -13,4 +13,7 @@ public static class ApplicationSetting
             return false;
         }
     }
+
+    public static bool IsLogEnabled => false;   
+
 }

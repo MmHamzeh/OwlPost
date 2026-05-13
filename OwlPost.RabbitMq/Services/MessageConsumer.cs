@@ -11,75 +11,86 @@ internal class MessageConsumer : BackgroundService
 {
     #region Fields and Ctor
 
-    private readonly ILogger<MessageConsumer> _logger;
-    private readonly IRabbitMqConnectionManagement _connection;
-    private readonly RabbitMqOptions _options;
-    private IChannel? _channel;
+    private readonly IAppLogger<MessageConsumer> _logger;
+    private readonly IChannelManager _channelManager;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly RabbitMqOptions _options;
+    private readonly uint _prefetchSize;
+    private readonly ushort _prefetchCount;
+
+    private IChannel? _channel;
 
     internal MessageConsumer(
-        ILogger<MessageConsumer> logger,
-        IRabbitMqConnectionManagement connection,
+        IAppLogger<MessageConsumer> logger,
+        IChannelManager channelManager,
         IOptions<RabbitMqOptions> options,
         IUnitOfWork unitOfWork)
     {
         _logger = logger;
-        _connection = connection;
-        _options = options.Value;
+        _channelManager = channelManager;
         _unitOfWork = unitOfWork;
+        _options = options.Value;
+
+        _prefetchSize = _options.Channel.PrefetchSize;
+        _prefetchCount = _options.Channel.PrefetchCount;
+
     }
 
     #endregion
 
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        _channel = await _connection.GetChannelAsync();
+        _channel ??= await _channelManager.GetChannelAsync();
 
         if (_channel is null || !_channel.IsOpen)
-            throw new Exception("Channel is not Accessible");
+            throw new Exception("Channel is not accessible");
 
-        foreach (var queue in _options.Queue)
+        while (!ct.IsCancellationRequested)
         {
-            await _channel.BasicQosAsync(
-                prefetchSize: 0,
-                prefetchCount: 1,
-                global: false,
-                stoppingToken);
-
-            var consumer = new AsyncEventingBasicConsumer(_channel);
-
-            consumer.ReceivedAsync += async (sender, ea) =>
+            foreach (var queue in _options.Queue)
             {
-                try
+                await _channel.BasicQosAsync(
+                    prefetchSize: _prefetchSize,
+                    prefetchCount: _prefetchCount,
+                    global: false,
+                    ct);
+
+                var consumer = new AsyncEventingBasicConsumer(_channel);
+
+                consumer.ReceivedAsync += async (sender, ea) =>
                 {
-                    var body = ea.Body.ToArray();
-                    var json = Encoding.UTF8.GetString(body);
+                    try
+                    {
+                        var body = ea.Body.ToArray();
+                        var json = Encoding.UTF8.GetString(body);
 
-                    _logger.LogInformation(
-                        "Message received from {Queue}: {Message}",
-                        queue.Name,
-                        json);
+                        _logger.LogDebug(
+                            "Message received from {Queue}: {Message}",
+                            queue.Name,
+                            json);
 
-                    await ProcessMessageAsync(json, stoppingToken);
+                        await ProcessMessageAsync(json, ct);
 
-                    await _channel.BasicAckAsync(
-                        deliveryTag: ea.DeliveryTag,
-                        multiple: false,
-                        stoppingToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex,
-                        "Error processing message from queue {Queue}",
-                        queue.Name);
-                    await _channel.BasicNackAsync(
-                        deliveryTag: ea.DeliveryTag,
-                        multiple: false,
-                        requeue: false,
-                        stoppingToken);
-                }
-            };
+                        await _channel.BasicAckAsync(
+                            deliveryTag: ea.DeliveryTag,
+                            multiple: false,
+                            ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex,
+                            "Error processing message from queue {Queue}",
+                            queue.Name);
+
+                        await _channel.BasicNackAsync(
+                            deliveryTag: ea.DeliveryTag,
+                            multiple: false,
+                            requeue: false,
+                            ct);
+                    }
+                };
+            }
         }
     }
 

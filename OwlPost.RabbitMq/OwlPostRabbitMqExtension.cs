@@ -9,11 +9,13 @@ public static class OwlPostRabbitMqExtension
     public static void AddRabbitMq(this IServiceCollection services,
         IConfiguration configuration)
     {
+        var exchangeOptionQueueOption = GetExchangeOptionQueueOption();
+
         var options = new Action<RabbitMqOptions>(opt =>
         {
             opt.Connection = GetConnectionOption(configuration);
-            opt.Exchange = GetExchangeOption(configuration);
-            opt.Queue = GetQueueOption(configuration);
+            opt.Exchange = exchangeOptionQueueOption.Item1;
+            opt.Queue = exchangeOptionQueueOption.Item2;
             opt.Channel = GetChannelOption(configuration);
         });
 
@@ -38,35 +40,68 @@ public static class OwlPostRabbitMqExtension
         return connectionOption;
     }
 
-    private static List<ExchangeOption> GetExchangeOption(IConfiguration configuration)
+    private static (List<ExchangeOption>, List<QueueOption>) GetExchangeOptionQueueOption()
     {
-        var json = configuration.GetSection("RabbitMQ:Exchanges")?.Value ?? string.Empty;
 
-        if (string.IsNullOrWhiteSpace(json))
-            throw new Exception("");
+        #region ExchangeOption
 
-        var exchangeOptionList = JsonSerializer.Deserialize<List<ExchangeOption>>(json);
+        var chatExchange = new ExchangeOption()
+        {
+            Name = "chat.exchange",
+            ExchangeTypeEnm = ExchangeTypeEnm.Direct,
+            Durable = true,
+            AutoDelete = false,
+            Arguments = null
+        };
 
-        if (exchangeOptionList == null)
-            throw new Exception("");
+        var notificationExchange = new ExchangeOption()
+        {
+            Name = "notification.exchange",
+            ExchangeTypeEnm = ExchangeTypeEnm.Direct,
+            Durable = true,
+            AutoDelete = false,
+            Arguments = null
+        };
 
-        return exchangeOptionList;
+        #endregion
+
+        #region QueueOption
+
+        var chatQueue = new QueueOption(chatExchange, routingKey: "chat.queue")
+        {
+            Name = "chat.queue",
+            Durable = true,
+            Exclusive = true,
+            AutoDelete = false,
+            Arguments = null,
+        };
+
+        var notificationQueue = new QueueOption(notificationExchange, routingKey: "notification.queue")
+        {
+            Name = "notification.queue",
+            Durable = false,
+            Exclusive = true,
+            AutoDelete = false,
+            Arguments = null,
+        };
+
+        #endregion
+
+        List<ExchangeOption> exchangeOptionList =
+        [
+            chatExchange,
+            notificationExchange
+        ];
+
+        List<QueueOption> queueOptionList =
+        [
+            chatQueue,
+            notificationQueue,
+        ];
+
+        return (exchangeOptionList, queueOptionList);
     }
 
-    private static List<QueueOption> GetQueueOption(IConfiguration configuration)
-    {
-        var json = configuration.GetSection("RabbitMQ:Queues")?.Value ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(json))
-            throw new Exception("");
-
-        var queueOptionList = JsonSerializer.Deserialize<List<QueueOption>>(json);
-
-        if (queueOptionList == null)
-            throw new Exception("");
-
-        return queueOptionList;
-    }
 
     private static ChannelOption GetChannelOption(IConfiguration configuration)
     {
@@ -87,9 +122,10 @@ public static class OwlPostRabbitMqExtension
     private static void AddServices(IServiceCollection services)
     {
 
-        services.AddSingleton<IRabbitMqConnectionManagement, RabbitMqConnectionManagement>();
-        services.AddSingleton<IRabbitMqExchangeManagement, RabbitMqExchangeManagement>();
-        services.AddSingleton<IRabbitMqQueueManagement, RabbitMqQueueManagement>();
+        services.AddSingleton<IConnectionManager, ConnectionManager>();
+        services.AddSingleton<IChannelManager, ChannelManager>();
+        services.AddSingleton<IExchangeManager, ExchangeManager>();
+        services.AddSingleton<IQueueManager, QueueManager>();
 
         services.AddSingleton<IMessageBus, MessageBus>();
 

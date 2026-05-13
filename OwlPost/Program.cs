@@ -14,14 +14,9 @@ public class Program
         builder.Services.AddControllers();
         builder.Services.AddOpenApi();
 
+        builder.Services.AddOwlPostCore();
         builder.Services.AddRabbitMq(builder.Configuration);
         builder.Services.AddSqlDatabase(builder.Configuration);
-
-
-
-
-
-
 
 
         var app = builder.Build();

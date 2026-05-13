@@ -2,24 +2,27 @@
 
 public class QueueOption
 {
-    public QueueOption()
-    {
-        
-    }
+    #region Fields and Ctor
 
-    public QueueOption(ExchangeOption exchange) : this() 
+    public QueueOption(ExchangeOption exchange, string routingKey)
     {
         Exchange = exchange;
         Durable = exchange.Durable;
         AutoDelete = exchange.AutoDelete;
+
+        RoutingKey = routingKey;
     }
 
-    public ExchangeOption Exchange { get; set; }
+    #endregion
 
-    public string Name { get; set; }
-    public bool Durable { get; set; }
-    public bool Exclusive { get; set; }
-    public bool AutoDelete { get; set; }
+    public ExchangeOption Exchange { get; private set; }
+
+    public required string Name { get; init; }
+    public bool Durable { get; init; }
+    public bool Exclusive { get; init; }
+    public bool AutoDelete { get; init; }
     public IDictionary<string, object?>? Arguments { get; set; }
+    public string RoutingKey => string.IsNullOrWhiteSpace(field) ? Name : field;
+
 
 }
