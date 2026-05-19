@@ -16,7 +16,7 @@ internal sealed class RabbitMqInitializer(
         if (connection == null)
             throw new Exception("Failed to establish RabbitMQ connectionManager.");
 
-        var channel = await channelManager.GetChannelAsync(connection);
+        var channel = await channelManager.GetChannelAsyncForPublish();
 
         if (channel == null)
             throw new Exception("Failed to create RabbitMQ channel.");

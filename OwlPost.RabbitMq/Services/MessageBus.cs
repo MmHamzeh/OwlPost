@@ -18,7 +18,7 @@ internal class MessageBus : IMessageBus
     public async Task PublishMessageAsync<T>(IMessageBusRequest request,
         CancellationToken cancellationToken = default) where T : IMessageBusResponse
     {
-        _channel ??= await _channelManager.GetChannelAsync();
+        _channel ??= await _channelManager.GetChannelAsyncForPublish();
 
         var messageContent = request.MessageContent;
         var json = JsonSerializer.Serialize(messageContent);

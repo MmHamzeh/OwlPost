@@ -45,7 +45,7 @@ internal sealed class MessageConsumer : BackgroundService
     {
         foreach (var queue in _options.Queue)
         {
-            _channelsPerQueue.Add(queue.Name, await _channelManager.GetChannelAsync());
+            _channelsPerQueue.Add(queue.Name, await _channelManager.GetChannelAsyncForConsume());
         }
 
         #region Consume Messages Action

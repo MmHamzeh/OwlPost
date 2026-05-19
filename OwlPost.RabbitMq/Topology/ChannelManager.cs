@@ -2,14 +2,16 @@
 
 internal interface IChannelManager : IAsyncDisposable
 {
-    ValueTask<IChannel> GetChannelAsync(IConnection? connection = null);
+    ValueTask<IChannel> GetChannelAsyncForPublish();
+    ValueTask<IChannel> GetChannelAsyncForConsume();
 }
 
 internal class ChannelManager : IChannelManager
 {
     private readonly IAppLogger<ChannelManager> _logger;
     private readonly IConnectionManager _connectionManager;
-    private IChannel? _channel;
+    private IChannel? _publishChannel;
+    private IChannel? _consumeChannel;
     private readonly SemaphoreSlim _sync = new(1, 1);
     private readonly RabbitMqOptions _rabbitMqOptions;
 
@@ -21,20 +23,20 @@ internal class ChannelManager : IChannelManager
     }
 
 
-    public async ValueTask<IChannel> GetChannelAsync(IConnection? connection = null)
+    public async ValueTask<IChannel> GetChannelAsyncForPublish()
     {
-        if (_channel is { IsOpen: true })
-            return _channel!;
+        if (_publishChannel is { IsOpen: true })
+            return _publishChannel!;
 
-        connection ??= await _connectionManager.GetConnectionAsync();
+        var connection = await _connectionManager.GetConnectionAsync();
 
         await _sync.WaitAsync();
         try
         {
-            if (_channel is { IsOpen: true })
-                return _channel!;
+            if (_publishChannel is { IsOpen: true })
+                return _publishChannel!;
 
-            _channel?.Dispose();
+            _publishChannel?.Dispose();
 
             var channelOption = _rabbitMqOptions.Channel;
 
@@ -44,7 +46,7 @@ internal class ChannelManager : IChannelManager
                 publisherConfirmationTrackingEnabled: channelOption.PublisherConfirmationTrackingEnabled
             );
 
-            _channel = await connection.CreateChannelAsync(opt);
+            _publishChannel = await connection.CreateChannelAsync(opt);
 
             var connectionTimeOut = channelOption.ContinuationTimeout ??
                                     channelOption.DefaultContinuationTimeout;
@@ -58,10 +60,63 @@ internal class ChannelManager : IChannelManager
                 connectionTimeOut = channelOption.DefaultContinuationTimeout;
             }
 
-            _channel.ContinuationTimeout = connectionTimeOut;
+            _publishChannel.ContinuationTimeout = connectionTimeOut;
 
             _logger.LogInformation("RabbitMQ channel created.");
-            return _channel!;
+            return _publishChannel!;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create RabbitMQ channel.");
+            throw;
+        }
+        finally
+        {
+            _sync.Release();
+        }
+    }
+
+    public async ValueTask<IChannel> GetChannelAsyncForConsume()
+    {
+        if (_consumeChannel is { IsOpen: true })
+            return _consumeChannel!;
+
+        var connection = await _connectionManager.GetConnectionAsync();
+
+        await _sync.WaitAsync();
+        try
+        {
+            if (_consumeChannel is { IsOpen: true })
+                return _consumeChannel!;
+
+            _consumeChannel?.Dispose();
+
+            var channelOption = _rabbitMqOptions.Channel;
+
+            var opt = new CreateChannelOptions
+            (
+                publisherConfirmationsEnabled: channelOption.PublisherConfirmationsEnabled,
+                publisherConfirmationTrackingEnabled: channelOption.PublisherConfirmationTrackingEnabled
+            );
+
+            _consumeChannel = await connection.CreateChannelAsync(opt);
+
+            var connectionTimeOut = channelOption.ContinuationTimeout ??
+                                    channelOption.DefaultContinuationTimeout;
+
+            if (connectionTimeOut <= TimeSpan.Zero)
+            {
+                _logger.LogWarning("Invalid continuation timeout value: {Timeout}. " +
+                                   "Using default value: {DefaultTimeout}.",
+                    connectionTimeOut,
+                    channelOption.DefaultContinuationTimeout);
+                connectionTimeOut = channelOption.DefaultContinuationTimeout;
+            }
+
+            _consumeChannel.ContinuationTimeout = connectionTimeOut;
+
+            _logger.LogInformation("RabbitMQ channel created.");
+            return _consumeChannel!;
         }
         catch (Exception ex)
         {
@@ -78,8 +133,8 @@ internal class ChannelManager : IChannelManager
     {
         try
         {
-            if (_channel is not null)
-                await _channel.CloseAsync();
+            if (_publishChannel is not null)
+                await _publishChannel.CloseAsync();
         }
         catch (Exception ex)
         {
@@ -87,7 +142,7 @@ internal class ChannelManager : IChannelManager
         }
         finally
         {
-            _channel?.Dispose();
+            _publishChannel?.Dispose();
             _sync.Dispose();
         }
     }
