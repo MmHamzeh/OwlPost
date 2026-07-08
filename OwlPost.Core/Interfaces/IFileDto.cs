@@ -10,9 +10,9 @@ public abstract class IFileDto : IDto<long>
     public byte[] FileContext { get; set; }
     public string Description { get; set; }
 
-    public override void PrepareDto(long currentUserId)
+    protected override void PrepareDto(long currentUserId, TimeProvider timeProvider)
     {
-        base.PrepareDto(currentUserId);
+        base.PrepareDto(currentUserId, timeProvider);
     }
 
 }

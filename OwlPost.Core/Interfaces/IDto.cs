@@ -4,14 +4,14 @@ namespace OwlPost.Core.Interfaces;
 
 public abstract class IDto<T>
 {
-    public Guid? PublicId { get; set; }
-    private StringBuilder? ErrorMessages;
+    public virtual Guid? PublicId { get; set; }
+    private StringBuilder? _errorMessages;
 
 
-    public virtual bool IsValid()
-        => ErrorMessages?.Length == 0;
+    protected bool IsValid()
+        => _errorMessages?.Length == 0;
 
-    public virtual void PrepareDto(T currentUserId)
+    protected virtual void PrepareDto(T currentUserId, TimeProvider timeProvider)
     {
         if (PublicId is null || PublicId == Guid.Empty) //create
         {
@@ -27,14 +27,14 @@ public abstract class IDto<T>
 
     protected void AddErrorMessage(string errorMessages)
     {
-        ErrorMessages ??= new StringBuilder();
-        ErrorMessages.AppendLine(errorMessages);
+        _errorMessages ??= new StringBuilder();
+        _errorMessages.AppendLine(errorMessages);
     }
 
-    public bool HasErrors()
-        => ErrorMessages?.Length > 0;
+    protected bool HasErrors()
+        => _errorMessages?.Length > 0;
 
-    public string GetErrorMessage()
-        => ErrorMessages?.ToString() ?? string.Empty;
+    protected string GetErrorMessage()
+        => _errorMessages?.ToString() ?? string.Empty;
 
 }

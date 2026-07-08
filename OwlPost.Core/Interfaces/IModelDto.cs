@@ -9,20 +9,20 @@ public abstract class IModelDto : IDto<long>
     public DateTime? ModifiedOn { get; set; }
     public long? ModifiedBy { get; set; }
 
-    public override void PrepareDto(long currentUserId)
+    protected override void PrepareDto(long currentUserId, TimeProvider timeProvider)
     {
-        base.PrepareDto(currentUserId);
+        base.PrepareDto(currentUserId, timeProvider);
 
 
         if (PublicId is null || PublicId.Value == Guid.Empty) //create
         {
             CreatedBy = currentUserId;
-            CreatedOn = DateTime.Now;
+            CreatedOn = timeProvider.GetUtcNow().DateTime;
         }
         else //update
         {
             ModifiedBy = currentUserId;
-            ModifiedOn = DateTime.Now;
+            ModifiedOn = timeProvider.GetUtcNow().DateTime;
         }
 
         return;

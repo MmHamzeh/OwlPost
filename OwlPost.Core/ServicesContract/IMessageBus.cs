@@ -2,6 +2,14 @@
 
 public interface IMessageBus
 {
-    Task PublishMessageAsync<T>(IMessageBusRequest request,
-        CancellationToken cancellationToken = default) where T : IMessageBusResponse;
+    Task<IMessageBusResponse> SendMessage(IMessageBusSendMessageRequest request);
+    Task<IMessageBusResponse> DeleteMessage(IMessageBusDeleteMessageRequest request);
+    Task<IMessageBusResponse> EditMessage(IMessageBusEditMessageRequest request);
+
+    Task<IMessageBusResponse> JoinRoom(IMessageBusJoinRoomRequest request);
+    Task<IMessageBusResponse> LeaveRoom(IMessageBusLeaveRoomRequest request);
+
+
+    Task<IMessageBusResponse> SendMessage<T>(T request) where T : IMessageBusSendMessageRequest;
+
 }

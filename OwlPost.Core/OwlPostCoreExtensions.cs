@@ -9,5 +9,7 @@ public static class OwlPostCoreExtensions
     public static void AddOwlPostCore(this IServiceCollection services)
     {
         services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
+        services.AddSingleton(TimeProvider.System);
+
     }
 }
