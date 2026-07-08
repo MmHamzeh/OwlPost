@@ -2,6 +2,7 @@
 
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
+global using OwlPost.Core.Exceptions;
 global using OwlPost.Core.Interfaces;
 global using OwlPost.Core.Models;
 global using OwlPost.Core.RepositoriesContract;

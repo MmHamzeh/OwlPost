@@ -10,6 +10,5 @@ public interface IMessageBus
     Task<IMessageBusResponse> LeaveRoom(IMessageBusLeaveRoomRequest request);
 
 
-    Task<IMessageBusResponse> SendMessage<T>(T request) where T : IMessageBusSendMessageRequest;
 
 }

@@ -1,4 +1,5 @@
 using OwlPost.RabbitMq;
+using OwlPost.Serializer;
 using OwlPost.Sql;
 
 namespace OwlPost;
@@ -15,6 +16,7 @@ public class Program
         builder.Services.AddOpenApi();
 
         builder.Services.AddOwlPostCore();
+        builder.Services.AddOwlPostSerializer();
         builder.Services.AddRabbitMq(builder.Configuration);
         builder.Services.AddSqlDatabase(builder.Configuration);
 
