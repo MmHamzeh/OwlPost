@@ -8,6 +8,30 @@ public class Serializer : ISerializer
 {
     private readonly ICompressor _compressor = new LZ4Compressor();
 
+    #region Properties
+
+    /*
+         ***** ContentType Helper *****
+
+         raw bytes / serialized object / file chunk: application/octet-stream
+         JSON bytes: application/json
+         UTF-8 text bytes: text/plain; charset=utf-8
+    */
+    public string ContentType => "application/octet-stream";
+
+    /*
+         ***** ContentEncoding Helper *****
+         
+         deflate = the raw compression algorithm format
+         gzip = a single-data compressed format built around deflate
+         zip = an archive container that can hold multiple files, usually compressed
+         If it is raw data, leave it null or empty
+    */
+    public string ContentEncoding => "gzip";
+
+    #endregion
+
+
     public byte[] Serialize<T>(T plainObject)
     {
         var bytes = ObjectToByteArray(plainObject);
@@ -22,6 +46,8 @@ public class Serializer : ISerializer
         var plainObject = ByteArrayToObject<T>(uncompressedBytes);
         return plainObject;
     }
+
+
 
     public async Task<Stream> SerializeAsync<T>(T plainObject)
     {
@@ -42,6 +68,7 @@ public class Serializer : ISerializer
     }
 
 
+
     #region Private Methods
 
     private static byte[] ObjectToByteArray<T>(T obj)
@@ -60,7 +87,7 @@ public class Serializer : ISerializer
 
 
 
-    private async Task ObjectToStreamAsync<T>(T obj, Stream stream)
+    private static async Task ObjectToStreamAsync<T>(T obj, Stream stream)
     {
         if (obj is null)
             throw new ArgumentNullException(nameof(obj));
@@ -72,7 +99,7 @@ public class Serializer : ISerializer
         //await stream.FlushAsync();
     }
 
-    private async Task<T?> StreamToObjectAsync<T>(Stream stream)
+    private static async Task<T?> StreamToObjectAsync<T>(Stream stream)
     {
         if (stream is null)
             throw new ArgumentNullException(nameof(stream));

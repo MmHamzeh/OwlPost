@@ -16,59 +16,61 @@ internal class MessageBus : IMessageBus
         _channelManager = channelManager;
         _serializer = serializer;
         _semaphore = new SemaphoreSlim(1, 1);
+
     }
 
 
-    public async Task<IMessageBusResponse> SendMessage(IMessageBusSendMessageRequest request)
+    public async Task<IMessageBusResponse> SendMessage(IMessageBusSendMessageRequest request, CancellationToken ct)
     {
         if (request is not MessageBusSendMessageRequest)
-            throw new NotSupportedArgumentException("type of request must be MessageBusSendMessageRequest");
+            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusSendMessageRequest));
 
-        return await PublishMessageAsync(request, isPersistent: true);
+
+        return await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
     }
 
-    public async Task<IMessageBusResponse> DeleteMessage(IMessageBusDeleteMessageRequest request)
+    public async Task<IMessageBusResponse> DeleteMessage(IMessageBusDeleteMessageRequest request, CancellationToken ct)
     {
 
         if (request is not MessageBusDeleteMessageRequest)
-            throw new NotSupportedArgumentException("type of request must be MessageBusDeleteMessageRequest");
+            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusDeleteMessageRequest));
 
-        return await PublishMessageAsync(request, isPersistent: true);
+        return await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
     }
 
-    public async Task<IMessageBusResponse> EditMessage(IMessageBusEditMessageRequest request)
+    public async Task<IMessageBusResponse> EditMessage(IMessageBusEditMessageRequest request, CancellationToken ct)
     {
 
         if (request is not MessageBusEditMessageRequest)
-            throw new NotSupportedArgumentException("type of request must be MessageBusEditMessageRequest");
+            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusEditMessageRequest));
 
-        return await PublishMessageAsync(request, isPersistent: true);
+        return await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
     }
 
-    public async Task<IMessageBusResponse> JoinRoom(IMessageBusJoinRoomRequest request)
+    public async Task<IMessageBusResponse> JoinRoom(IMessageBusJoinRoomRequest request, CancellationToken ct)
     {
 
         if (request is not MessageBusJoinRoomRequest)
-            throw new NotSupportedArgumentException("type of request must be MessageBusJoinRoomRequest");
+            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusJoinRoomRequest));
 
-        return await PublishMessageAsync(request, isPersistent: true);
+        return await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
     }
 
-    public async Task<IMessageBusResponse> LeaveRoom(IMessageBusLeaveRoomRequest request)
+    public async Task<IMessageBusResponse> LeaveRoom(IMessageBusLeaveRoomRequest request, CancellationToken ct)
     {
 
         if (request is not MessageBusLeaveRoomRequest)
-            throw new NotSupportedArgumentException("type of request must be MessageBusLeaveRoomRequest");
+            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusLeaveRoomRequest));
 
-        return await PublishMessageAsync(request, isPersistent: true);
+        return await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
     }
 
 
 
     #region Private Methods
 
-    private async Task<IMessageBusResponse> PublishMessageAsync(IMessageBusRequest request, bool isPersistent,
-        CancellationToken cancellationToken = default)
+    private async Task<IMessageBusResponse> PublishMessageAsync(IMessageBusRequest request, bool isPersistent, string exchange,
+        CancellationToken cancellationToken)
     {
         if (_channel is null)
         {
@@ -83,23 +85,24 @@ internal class MessageBus : IMessageBus
             }
         }
 
-        var body = _serializer.Serialize(request);
-        //var body = await _serializer.SerializeAsync(request);
+        var content = _serializer.Serialize(request);
 
         var props = new BasicProperties
         {
-            ContentType = "application/json",
+            ContentType = _serializer.ContentType,
+            ContentEncoding = _serializer.ContentEncoding,
+            MessageId = Guid.CreateVersion7().ToString(),
             DeliveryMode = isPersistent
                 ? DeliveryModes.Persistent
                 : DeliveryModes.Transient
         };
 
         await _channel.BasicPublishAsync(
-            exchange: "chat.exchange",
+            exchange: exchange,
             routingKey: request.GroupingKey,
             mandatory: false,
             basicProperties: props,
-            body: body,
+            body: content,
             cancellationToken
         );
 
