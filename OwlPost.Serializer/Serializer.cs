@@ -1,112 +1,129 @@
 ﻿using EasyCompressor;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using K4os.Compression.LZ4;
+using Microsoft.IO;
 using OwlPost.Core.ServicesContract;
 
 namespace OwlPost.Serializer;
 
 public class Serializer : ISerializer
 {
-    private readonly ICompressor _compressor = new LZ4Compressor();
+    #region Ctor and Fields
 
-    #region Properties
+    private readonly ICompressor _compressor;
+    private readonly RecyclableMemoryStreamManager _streamManager;
 
-    /*
-         ***** ContentType Helper *****
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNameCaseInsensitive = false,
+        Converters =
+        {
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
+        }
+    };
 
-         raw bytes / serialized object / file chunk: application/octet-stream
-         JSON bytes: application/json
-         UTF-8 text bytes: text/plain; charset=utf-8
-    */
-    public string ContentType => "application/octet-stream";
+    public Serializer(RecyclableMemoryStreamManager streamManager)
+    {
+        const LZ4Level lZ4Level = LZ4Level.L03_HC;
+        const LZ4BinaryCompressionMode lZ4BinaryCompressionMode = LZ4BinaryCompressionMode.Optimal;
 
-    /*
-         ***** ContentEncoding Helper *****
-         
-         deflate = the raw compression algorithm format
-         gzip = a single-data compressed format built around deflate
-         zip = an archive container that can hold multiple files, usually compressed
-         If it is raw data, leave it null or empty
-    */
-    public string ContentEncoding => "gzip";
+        _compressor = new LZ4Compressor(lZ4Level, lZ4BinaryCompressionMode);
+        _streamManager = streamManager ?? throw new ArgumentNullException(nameof(streamManager));
+
+        ContentType = "application/octet-stream";
+        ContentEncoding = $"lz4-{lZ4BinaryCompressionMode.ToString().ToLowerInvariant()}";
+    }
 
     #endregion
+
+    public string ContentType { get; }
+    public string ContentEncoding { get; }
 
 
     public byte[] Serialize<T>(T plainObject)
     {
-        var bytes = ObjectToByteArray(plainObject);
-        var compressedBytes = _compressor.Compress(bytes);
-        return compressedBytes;
+        if (plainObject is null)
+            return [];
 
+        using var tempStream = _streamManager.GetStream("Serializer_Sync");
+        JsonSerializer.Serialize(tempStream, plainObject, JsonSerializerOptions);
+        tempStream.Position = 0;
+        return _compressor.Compress(tempStream);
     }
 
-    public T? Deserialize<T>(byte[] serialized)
+    public T? Deserialize<T>(byte[]? serializedObject)
     {
-        var uncompressedBytes = _compressor.Decompress(serialized);
-        var plainObject = ByteArrayToObject<T>(uncompressedBytes);
-        return plainObject;
+        if (serializedObject is null || serializedObject.Length == 0)
+            return default;
+
+        using var compressedStream = new MemoryStream(serializedObject, writable: false);
+        using var decompressedStream = _streamManager.GetStream("Serializer_Sync_Decompressed");
+
+        _compressor.Decompress(compressedStream, decompressedStream);
+        decompressedStream.Position = 0;
+
+        return JsonSerializer.Deserialize<T>(decompressedStream, JsonSerializerOptions);
     }
 
-
-
-    public async Task<Stream> SerializeAsync<T>(T plainObject)
+    public async Task<Stream> SerializeAsync<T>(T plainObject, CancellationToken ct = default)
     {
-        await using var inputStream = new MemoryStream();
-        await ObjectToStreamAsync(plainObject, inputStream);
-        var outputStream = new MemoryStream();
-        await _compressor.CompressAsync(inputStream, outputStream);
-        return outputStream;
+        if (plainObject is null)
+            return Stream.Null;
 
+        await using var jsonTempStream = _streamManager.GetStream("Serializer_JsonTemp");
+
+        await JsonSerializer.SerializeAsync(
+            jsonTempStream,
+            plainObject,
+            JsonSerializerOptions,
+            ct).ConfigureAwait(false);
+
+        jsonTempStream.Position = 0;
+
+        var compressedOutputStream = _streamManager.GetStream("Serializer_CompressedOutput");
+
+        try
+        {
+            await _compressor
+                .CompressAsync(jsonTempStream, compressedOutputStream, ct)
+                .ConfigureAwait(false);
+
+            compressedOutputStream.Position = 0;
+            return compressedOutputStream;
+        }
+        catch
+        {
+            await compressedOutputStream.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
-    public async Task<T?> DeserializeAsync<T>(Stream inputStream)
+    public async Task<T?> DeserializeAsync<T>(Stream streamedObject, CancellationToken ct = default)
     {
-        var outputStream = new MemoryStream();
-        await _compressor.DecompressAsync(inputStream, outputStream);
-        var plainObject = await StreamToObjectAsync<T>(outputStream);
-        return plainObject;
+        if (streamedObject is null)
+            throw new ArgumentNullException(nameof(streamedObject));
+
+        if (streamedObject.CanSeek && streamedObject.Position >= streamedObject.Length)
+            return default;
+
+        await using var decompressedStream = _streamManager.GetStream("Serializer_Decompressed");
+
+        await _compressor
+            .DecompressAsync(streamedObject, decompressedStream, ct)
+            .ConfigureAwait(false);
+
+        if (decompressedStream.Length == 0)
+            return default;
+
+        decompressedStream.Position = 0;
+
+        return await JsonSerializer.DeserializeAsync<T>(
+            decompressedStream,
+            JsonSerializerOptions,
+            ct).ConfigureAwait(false);
     }
-
-
-
-    #region Private Methods
-
-    private static byte[] ObjectToByteArray<T>(T obj)
-    {
-        return obj == null
-            ? []
-            : JsonSerializer.SerializeToUtf8Bytes(obj);
-    }
-
-    private static T? ByteArrayToObject<T>(byte[] bytes)
-    {
-        return bytes.Length == 0
-            ? default
-            : JsonSerializer.Deserialize<T>(bytes);
-    }
-
-
-
-    private static async Task ObjectToStreamAsync<T>(T obj, Stream stream)
-    {
-        if (obj is null)
-            throw new ArgumentNullException(nameof(obj));
-
-        if (stream is null)
-            throw new ArgumentNullException(nameof(stream));
-
-        await JsonSerializer.SerializeAsync(stream, obj);
-        //await stream.FlushAsync();
-    }
-
-    private static async Task<T?> StreamToObjectAsync<T>(Stream stream)
-    {
-        if (stream is null)
-            throw new ArgumentNullException(nameof(stream));
-
-        return await JsonSerializer.DeserializeAsync<T>(stream);
-    }
-
-    #endregion
 
 }

@@ -4,13 +4,13 @@ namespace OwlPost.RabbitMq.Services;
 
 internal class MessageBus : IMessageBus
 {
-    private readonly IAppLogger<ExchangeManager> _logger;
+    private readonly IAppLogger<MessageBus> _logger;
     private readonly IChannelManager _channelManager;
     private IChannel? _channel;
     private readonly SemaphoreSlim _semaphore;
     private readonly ISerializer _serializer;
 
-    internal MessageBus(IAppLogger<ExchangeManager> logger, IChannelManager channelManager, ISerializer serializer)
+    internal MessageBus(IAppLogger<MessageBus> logger, IChannelManager channelManager, ISerializer serializer)
     {
         _logger = logger;
         _channelManager = channelManager;
@@ -69,44 +69,57 @@ internal class MessageBus : IMessageBus
 
     #region Private Methods
 
-    private async Task<IMessageBusResponse> PublishMessageAsync(IMessageBusRequest request, bool isPersistent, string exchange,
-        CancellationToken cancellationToken)
+    private async Task<IMessageBusResponse> PublishMessageAsync(IMessageBusRequest request, bool isPersistent,
+        string exchangeName, CancellationToken ct)
     {
-        if (_channel is null)
+        try
         {
-            try
+            if (_channel is null)
             {
-                await _semaphore.WaitAsync(cancellationToken);
-                _channel ??= await _channelManager.GetChannelAsyncForPublish();
+                try
+                {
+                    await _semaphore.WaitAsync(ct);
+                    _channel ??= await _channelManager.GetChannelAsyncForPublish();
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
             }
-            finally
+
+            var content = _serializer.Serialize(request);
+
+            var props = new BasicProperties
             {
-                _semaphore.Release();
-            }
+                ContentType = _serializer.ContentType,
+                ContentEncoding = _serializer.ContentEncoding,
+                MessageId = Guid.CreateVersion7().ToString(),
+                DeliveryMode = isPersistent
+                    ? DeliveryModes.Persistent
+                    : DeliveryModes.Transient,
+                Persistent = isPersistent
+            };
+
+            await _channel.BasicPublishAsync(
+                exchange: exchangeName,
+                routingKey: request.GroupingKey,
+                mandatory: false,
+                basicProperties: props,
+                body: content,
+                ct
+            );
+
+            _logger.LogDebug(
+                "Message published to exchange \"{ExchangeName}\" with routing key \"{RequestGroupingKey}\"",
+                exchangeName, request.GroupingKey);
+
+            return new EnqueueResponse();
         }
-
-        var content = _serializer.Serialize(request);
-
-        var props = new BasicProperties
+        catch (Exception e)
         {
-            ContentType = _serializer.ContentType,
-            ContentEncoding = _serializer.ContentEncoding,
-            MessageId = Guid.CreateVersion7().ToString(),
-            DeliveryMode = isPersistent
-                ? DeliveryModes.Persistent
-                : DeliveryModes.Transient
-        };
-
-        await _channel.BasicPublishAsync(
-            exchange: exchange,
-            routingKey: request.GroupingKey,
-            mandatory: false,
-            basicProperties: props,
-            body: content,
-            cancellationToken
-        );
-
-        return new EnqueueResponse();
+            _logger.LogError(e, "Error occurred while publishing message to exchange \"{ExchangeName}\" with routing key \"{RequestGroupingKey}\"", exchangeName, request.GroupingKey);
+            throw;
+        }
     }
 
 
