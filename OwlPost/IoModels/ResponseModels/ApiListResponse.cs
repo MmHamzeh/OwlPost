@@ -5,7 +5,7 @@ public interface IApiListResponse<TModel> : IApiResponse where TModel : class, I
     public List<TModel> ModelList { get; set; }
 }
 
-public class ApiListResponse<TModel> : IApiListResponse<TModel> where TModel : class, IVm, new()
+public record ApiListResponse<TModel> : IApiListResponse<TModel> where TModel : class, IVm, new()
 {
     #region Ctor
 

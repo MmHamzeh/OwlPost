@@ -16,6 +16,9 @@ public class ChatMessage : IDbModel
 
     public string Content { get; set; }
 
+    /// <summary>
+    /// ConcurrencyToken
+    /// </summary>
     public Guid Version { get; set; }
 
     #region Relations

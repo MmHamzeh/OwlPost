@@ -4,12 +4,8 @@ using OwlPost.Services;
 
 namespace OwlPost.Controllers;
 
-[Route("api/[controller]")]
-[ApiController]
-public class MessageController(MessagingService messagingService) : ControllerBase
+public class MessageController(MessagingService messagingService) : ApplicationBaseController
 {
-
-
     [HttpPost("/Send")]
     public async Task<ApiResponse> SendMessage(SendMessageDto dto, CancellationToken ct)
     {

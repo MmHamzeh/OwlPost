@@ -10,7 +10,7 @@ public interface IApiResponse
 
 
 
-public class ApiResponse : IApiResponse
+public record ApiResponse : IApiResponse
 {
     public ApiResponse()
     {

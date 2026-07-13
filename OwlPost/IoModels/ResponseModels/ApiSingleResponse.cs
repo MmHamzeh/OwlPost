@@ -5,7 +5,7 @@ public interface IApiSingleResponse<TModel> : IApiResponse where TModel : class,
     public TModel Model { get; set; }
 }
 
-public class ApiSingleResponse<TModel> : IApiSingleResponse<TModel> where TModel : class, IVm, new()
+public record ApiSingleResponse<TModel> : IApiSingleResponse<TModel> where TModel : class, IVm, new()
 {
 
     #region Ctor

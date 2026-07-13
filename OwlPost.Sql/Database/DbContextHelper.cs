@@ -1,6 +1,6 @@
 ﻿namespace OwlPost.Sql.Database;
 
-public class DbContextHelper
+internal static class DbContextHelper
 {
     internal static string Collation => "Latin1_General_100_CI_AI_SC_UTF8";
 
@@ -36,7 +36,8 @@ public class DbContextHelper
 
     internal static void ConfigureEntities(ModelBuilder modelBuilder)
     {
-
+        modelBuilder.Entity<ChatMessage>()
+            .Property(p => p.Version).IsConcurrencyToken();
     }
 
 

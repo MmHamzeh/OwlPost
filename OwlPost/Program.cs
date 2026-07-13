@@ -27,6 +27,7 @@ public class Program
         builder.Services.AddScoped<IUserService, OwlPost.Services.UserService>();
 
         builder.Services.AddScoped<MessagingService>();
+        builder.Services.AddScoped<ChatRoomService>();
 
         var app = builder.Build();
 
