@@ -18,7 +18,7 @@ public record MessageBusEditMessageRequest(DateTime CreatedOn, Guid CreatedBy, s
 {
 }
 
-public record MessageBusDeleteMessageRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, string Content, Guid RoomId, Guid ConcurrencyToken, Guid MessageId)
+public record MessageBusDeleteMessageRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, Guid RoomId, Guid ConcurrencyToken, Guid MessageId)
     : IMessageBusRequest
 {
 }

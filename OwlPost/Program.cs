@@ -1,6 +1,7 @@
 using OwlPost.RabbitMq;
 using OwlPost.Sanitizer;
 using OwlPost.Serializer;
+using OwlPost.Services;
 using OwlPost.Sql;
 
 namespace OwlPost;
@@ -25,6 +26,7 @@ public class Program
         //TODO: create a new project for Authentication, Authorization
         builder.Services.AddScoped<IUserService, OwlPost.Services.UserService>();
 
+        builder.Services.AddScoped<MessagingService>();
 
         var app = builder.Build();
 
