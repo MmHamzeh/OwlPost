@@ -2,6 +2,8 @@
 
 internal class MessageBus : IMessageBus, IAsyncDisposable
 {
+    #region Fields and Ctor
+
     private readonly IAppLogger<MessageBus> _logger;
     private readonly IChannelManager _channelManager;
     private IChannel? _channel;
@@ -16,6 +18,9 @@ internal class MessageBus : IMessageBus, IAsyncDisposable
         _semaphore = new SemaphoreSlim(1, 1);
     }
 
+    #endregion
+
+    #region Message Section
 
     public async Task<IMessageBusResponse> SendMessage(MessageBusSendMessageRequest request, CancellationToken ct)
         => await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
@@ -26,11 +31,27 @@ internal class MessageBus : IMessageBus, IAsyncDisposable
     public async Task<IMessageBusResponse> EditMessage(MessageBusEditMessageRequest request, CancellationToken ct)
         => await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
 
+    #endregion
+
+    #region ChatRoom Serction
+
+
     public async Task<IMessageBusResponse> JoinRoom(MessageBusJoinRoomRequest request, CancellationToken ct)
         => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
 
     public async Task<IMessageBusResponse> LeaveRoom(MessageBusLeaveRoomRequest request, CancellationToken ct)
         => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+
+    public async Task<IMessageBusResponse> CreateRoom(MessageBusCreateRoomRequest request, CancellationToken ct)
+        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+
+    public async Task<IMessageBusResponse> EditRoom(MessageBusEditRoomRequest request, CancellationToken ct)
+        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+
+    public async Task<IMessageBusResponse> DeleteRoom(MessageBusDeleteRoomRequest request, CancellationToken ct)
+        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+
+    #endregion
 
 
     #region Private Methods
@@ -112,4 +133,5 @@ internal class MessageBus : IMessageBus, IAsyncDisposable
         if (_channel != null) await _channel.DisposeAsync();
         _semaphore.Dispose();
     }
+
 }

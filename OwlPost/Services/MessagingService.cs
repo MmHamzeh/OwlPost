@@ -1,6 +1,4 @@
-﻿using OwlPost.IoModels.ResponseModels;
-
-namespace OwlPost.Services;
+﻿namespace OwlPost.Services;
 
 public class MessagingService(
     IMessageBus messageBus,

@@ -11,4 +11,7 @@ public interface IMessageBus
     Task<IMessageBusResponse> JoinRoom(MessageBusJoinRoomRequest request, CancellationToken ct);
     Task<IMessageBusResponse> LeaveRoom(MessageBusLeaveRoomRequest request, CancellationToken ct);
 
+    Task<IMessageBusResponse> CreateRoom(MessageBusCreateRoomRequest req, CancellationToken ct);
+    Task<IMessageBusResponse> EditRoom(MessageBusEditRoomRequest req, CancellationToken ct);
+    Task<IMessageBusResponse> DeleteRoom(MessageBusDeleteRoomRequest req, CancellationToken ct);
 }

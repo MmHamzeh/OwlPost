@@ -32,3 +32,18 @@ public record MessageBusLeaveRoomRequest(DateTime CreatedOn, Guid CreatedBy, str
     : IMessageBusRequest
 {
 }
+
+public record MessageBusCreateRoomRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, string Name, string Description)
+    : IMessageBusRequest
+{
+}
+
+public record MessageBusEditRoomRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, Guid RoomId, string Name, string Description)
+    : IMessageBusRequest
+{
+}
+
+public record MessageBusDeleteRoomRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, Guid RoomId)
+    : IMessageBusRequest
+{
+}

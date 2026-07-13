@@ -6,3 +6,4 @@ global using OwlPost.Core.Interfaces;
 global using OwlPost.Core.RepositoriesContract;
 global using OwlPost.Core.ServicesContract;
 global using OwlPost.IoModels.DtoModels;
+global using OwlPost.IoModels.ResponseModels;
