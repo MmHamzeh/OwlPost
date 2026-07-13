@@ -18,16 +18,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
     <Folder Include="Configs\" />
     <Folder Include="Database\" />
-    <Folder Include="Repositories\" />
-    <Folder Include="Services\" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OwlPost.Core\OwlPost.Core.csproj" />
     <ProjectReference Include="..\OwlPost.RabbitMq\OwlPost.RabbitMq.csproj" />
+    <ProjectReference Include="..\OwlPost.Sanitizer\OwlPost.Sanitizer.csproj" />
     <ProjectReference Include="..\OwlPost.Serializer\OwlPost.Serializer.csproj" />
     <ProjectReference Include="..\OwlPost.Sql\OwlPost.Sql.csproj" />
   </ItemGroup>

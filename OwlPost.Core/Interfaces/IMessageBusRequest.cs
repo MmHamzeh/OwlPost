@@ -8,30 +8,27 @@ public interface IMessageBusRequest
 
 }
 
-public interface IMessageBusSendMessageRequest : IMessageBusRequest
+public record MessageBusSendMessageRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, string Content, Guid RoomId) 
+    : IMessageBusRequest
 {
-    public string Content { get; set; }
 }
 
-public interface IMessageBusEditMessageRequest : IMessageBusRequest
+public record MessageBusEditMessageRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, string Content, Guid RoomId, Guid ConcurrencyToken, Guid MessageId) 
+    : IMessageBusRequest
 {
-    public Guid PublicId { get; set; }
-    public string Content { get; set; }
-    public Guid ConcurrencyToken { get; set; }
 }
 
-public interface IMessageBusDeleteMessageRequest : IMessageBusRequest
+public record MessageBusDeleteMessageRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, string Content, Guid RoomId, Guid ConcurrencyToken, Guid MessageId)
+    : IMessageBusRequest
 {
-    public Guid PublicId { get; set; }
-    public Guid ConcurrencyToken { get; set; }
 }
 
-public interface IMessageBusJoinRoomRequest : IMessageBusRequest
+public record MessageBusJoinRoomRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, Guid RoomId) 
+    : IMessageBusRequest
 {
-    public Guid RoomId { get; set; }
 }
 
-public interface IMessageBusLeaveRoomRequest : IMessageBusRequest
+public record MessageBusLeaveRoomRequest(DateTime CreatedOn, Guid CreatedBy, string GroupingKey, Guid RoomId) 
+    : IMessageBusRequest
 {
-    public Guid RoomId { get; set; }
 }

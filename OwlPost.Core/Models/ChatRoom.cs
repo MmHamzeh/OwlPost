@@ -17,6 +17,7 @@ public class ChatRoom : IDbModel
         #region Relations
 
         public ICollection<ChatMessage> ChatMessages { get; set; }
+        public ICollection<ChatRoomUser> ChatRoomUsers { get; set; }
 
 
         #endregion

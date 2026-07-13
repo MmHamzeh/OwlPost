@@ -1,8 +1,6 @@
-﻿using OwlPost.RabbitMq.Exceptions;
+﻿namespace OwlPost.RabbitMq.Services;
 
-namespace OwlPost.RabbitMq.Services;
-
-internal class MessageBus : IMessageBus
+internal class MessageBus : IMessageBus, IAsyncDisposable
 {
     private readonly IAppLogger<MessageBus> _logger;
     private readonly IChannelManager _channelManager;
@@ -16,76 +14,33 @@ internal class MessageBus : IMessageBus
         _channelManager = channelManager;
         _serializer = serializer;
         _semaphore = new SemaphoreSlim(1, 1);
-
     }
 
 
-    public async Task<IMessageBusResponse> SendMessage(IMessageBusSendMessageRequest request, CancellationToken ct)
-    {
-        if (request is not MessageBusSendMessageRequest)
-            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusSendMessageRequest));
+    public async Task<IMessageBusResponse> SendMessage(MessageBusSendMessageRequest request, CancellationToken ct)
+        => await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
 
+    public async Task<IMessageBusResponse> DeleteMessage(MessageBusDeleteMessageRequest request, CancellationToken ct)
+        => await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
 
-        return await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
-    }
+    public async Task<IMessageBusResponse> EditMessage(MessageBusEditMessageRequest request, CancellationToken ct)
+        => await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
 
-    public async Task<IMessageBusResponse> DeleteMessage(IMessageBusDeleteMessageRequest request, CancellationToken ct)
-    {
+    public async Task<IMessageBusResponse> JoinRoom(MessageBusJoinRoomRequest request, CancellationToken ct)
+        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
 
-        if (request is not MessageBusDeleteMessageRequest)
-            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusDeleteMessageRequest));
-
-        return await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
-    }
-
-    public async Task<IMessageBusResponse> EditMessage(IMessageBusEditMessageRequest request, CancellationToken ct)
-    {
-
-        if (request is not MessageBusEditMessageRequest)
-            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusEditMessageRequest));
-
-        return await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
-    }
-
-    public async Task<IMessageBusResponse> JoinRoom(IMessageBusJoinRoomRequest request, CancellationToken ct)
-    {
-
-        if (request is not MessageBusJoinRoomRequest)
-            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusJoinRoomRequest));
-
-        return await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
-    }
-
-    public async Task<IMessageBusResponse> LeaveRoom(IMessageBusLeaveRoomRequest request, CancellationToken ct)
-    {
-
-        if (request is not MessageBusLeaveRoomRequest)
-            throw new NotSupportedArgumentException(nameof(request), typeof(MessageBusLeaveRoomRequest));
-
-        return await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
-    }
-
+    public async Task<IMessageBusResponse> LeaveRoom(MessageBusLeaveRoomRequest request, CancellationToken ct)
+        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
 
 
     #region Private Methods
 
     private async Task<IMessageBusResponse> PublishMessageAsync(IMessageBusRequest request, bool isPersistent,
-        string exchangeName, CancellationToken ct)
+        string exchangeName, CancellationToken ct, bool mandatory = false)
     {
         try
         {
-            if (_channel is null)
-            {
-                try
-                {
-                    await _semaphore.WaitAsync(ct);
-                    _channel ??= await _channelManager.GetChannelAsyncForPublish();
-                }
-                finally
-                {
-                    _semaphore.Release();
-                }
-            }
+            var channel = await GetChannel(ct);
 
             var content = _serializer.Serialize(request);
 
@@ -100,10 +55,10 @@ internal class MessageBus : IMessageBus
                 Persistent = isPersistent
             };
 
-            await _channel.BasicPublishAsync(
+            await channel.BasicPublishAsync(
                 exchange: exchangeName,
                 routingKey: request.GroupingKey,
-                mandatory: false,
+                mandatory: mandatory,
                 basicProperties: props,
                 body: content,
                 ct
@@ -122,6 +77,39 @@ internal class MessageBus : IMessageBus
         }
     }
 
+    private async Task<IChannel> GetChannel(CancellationToken ct)
+    {
+        if (_channel is not null && _channel.IsOpen)
+            return _channel;
+
+        try
+        {
+            await _semaphore.WaitAsync(ct);
+
+            if (_channel is not null && !_channel.IsOpen)
+            {
+                if (!_channel.IsClosed)
+                    await _channel.CloseAsync(ct);
+
+                await _channel.DisposeAsync();
+            }
+
+            _channel ??= await _channelManager.GetChannelAsyncForPublish();
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+
+        return _channel;
+    }
 
     #endregion
+
+    public async ValueTask DisposeAsync()
+    {
+        await _channelManager.DisposeAsync();
+        if (_channel != null) await _channel.DisposeAsync();
+        _semaphore.Dispose();
+    }
 }

@@ -2,13 +2,13 @@
 
 public interface IMessageBus
 {
-    Task<IMessageBusResponse> SendMessage(IMessageBusSendMessageRequest request, CancellationToken ct);
-    Task<IMessageBusResponse> DeleteMessage(IMessageBusDeleteMessageRequest request, CancellationToken ct);
-    Task<IMessageBusResponse> EditMessage(IMessageBusEditMessageRequest request, CancellationToken ct);
-
-    Task<IMessageBusResponse> JoinRoom(IMessageBusJoinRoomRequest request, CancellationToken ct);
-    Task<IMessageBusResponse> LeaveRoom(IMessageBusLeaveRoomRequest request, CancellationToken ct);
+    Task<IMessageBusResponse> SendMessage(MessageBusSendMessageRequest request, CancellationToken ct);
 
 
+    Task<IMessageBusResponse> DeleteMessage(MessageBusDeleteMessageRequest request, CancellationToken ct);
+    Task<IMessageBusResponse> EditMessage(MessageBusEditMessageRequest request, CancellationToken ct);
+
+    Task<IMessageBusResponse> JoinRoom(MessageBusJoinRoomRequest request, CancellationToken ct);
+    Task<IMessageBusResponse> LeaveRoom(MessageBusLeaveRoomRequest request, CancellationToken ct);
 
 }

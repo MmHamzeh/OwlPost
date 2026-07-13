@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="OwlPost.Core/OwlPost.Core.csproj" />
   <Project Path="OwlPost.RabbitMq/OwlPost.RabbitMq.csproj" />
+  <Project Path="OwlPost.Sanitizer/OwlPost.Sanitizer.csproj" Id="9ce092d7-6302-44af-8a8d-6a9b1efb6eef" />
   <Project Path="OwlPost.Serializer/OwlPost.Serializer.csproj" Id="f12cea5b-8e0d-491f-a062-d44709e6fe04" />
   <Project Path="OwlPost.SignalR/OwlPost.SignalR.csproj" Id="68c53377-5e7f-4aac-83b7-dd55e0f10ea1" />
   <Project Path="OwlPost.Sql/OwlPost.Sql.csproj" Id="d629d867-ad88-43ba-b19f-61d2212af3ff" />
