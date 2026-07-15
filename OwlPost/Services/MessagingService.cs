@@ -8,8 +8,6 @@ public class MessagingService(
     IMessageRepository messageRepository,
     IUserService userService)
 {
-    private readonly DateTimeOffset _now = timeProvider.GetUtcNow();
-
     public async Task<ApiResponse> SendMessage(SendMessageDto dto, CancellationToken ct)
     {
         var chatRoomId = await chatRoomRepository
@@ -22,8 +20,14 @@ public class MessagingService(
 
         var groupingKey = dto.RoomId.ToString();
 
-        var req = new MessageBusSendMessageRequest(_now.DateTime, userService.UserPublicId, groupingKey,
-            sanitizedContent, dto.RoomId);
+        var req = new MessageBusSendMessageRequest
+        {
+            CreatedOn = timeProvider.GetUtcNow().DateTime, 
+            CreatedBy = userService.UserPublicId,
+            GroupingKey = groupingKey,
+            Content = sanitizedContent,
+            RoomId = dto.RoomId
+        };
         
         await messageBus.SendMessage(req, ct);
 
@@ -40,7 +44,7 @@ public class MessagingService(
             throw new Exception("you have no access to this chatroom");
 
         var concurrencyToken = await messageRepository
-                .GetMessageConcurrencyToken(dto.RoomId, dto.MessageId, userService.UserPublicId, ct);
+                .GetUserMessageConcurrencyToken(dto.RoomId, dto.MessageId, userService.UserPublicId, ct);
 
         if (concurrencyToken is null)
             throw new Exception("you have no access to this Message");
@@ -49,8 +53,16 @@ public class MessagingService(
 
         var groupingKey = dto.RoomId.ToString();
 
-        var req = new MessageBusEditMessageRequest(_now.DateTime, userService.UserPublicId, groupingKey,
-            sanitizedContent, dto.RoomId, concurrencyToken.Value, dto.MessageId);
+        var req = new MessageBusEditMessageRequest
+        {
+            CreatedOn = timeProvider.GetUtcNow().DateTime,
+            CreatedBy = userService.UserPublicId,
+            GroupingKey = groupingKey,
+            Content = sanitizedContent,
+            RoomId = dto.RoomId,
+            ConcurrencyToken = concurrencyToken.Value,
+            MessageId = dto.MessageId
+        };
 
         await messageBus.EditMessage(req, ct);
         return new ApiResponse();
@@ -67,15 +79,22 @@ public class MessagingService(
 
         var concurrencyToken =
             await messageRepository
-                .GetMessageConcurrencyToken(dto.RoomId, dto.MessageId, userService.UserPublicId, ct);
+                .GetUserMessageConcurrencyToken(dto.RoomId, dto.MessageId, userService.UserPublicId, ct);
 
         if (concurrencyToken is null)
             throw new Exception("you have no access to this Message");
 
         var groupingKey = dto.RoomId.ToString();
 
-        var req = new MessageBusDeleteMessageRequest(_now.DateTime, userService.UserPublicId, groupingKey,
-            dto.RoomId, concurrencyToken.Value, dto.MessageId);
+        var req = new MessageBusDeleteMessageRequest
+        {
+            CreatedOn = timeProvider.GetUtcNow().DateTime,
+            CreatedBy = userService.UserPublicId,
+            GroupingKey = groupingKey,
+            RoomId = dto.RoomId,
+            ConcurrencyToken = concurrencyToken.Value,
+            MessageId = dto.MessageId
+        };
 
         await messageBus.DeleteMessage(req, ct);
         return new ApiResponse();

@@ -1,7 +1,6 @@
 using OwlPost.RabbitMq;
 using OwlPost.Sanitizer;
 using OwlPost.Serializer;
-using OwlPost.Services;
 using OwlPost.Sql;
 
 namespace OwlPost;

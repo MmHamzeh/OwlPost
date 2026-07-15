@@ -6,12 +6,17 @@ public class ChatRoomService(
     TimeProvider timeProvider,
     IUserService userService)
 {
-    private readonly DateTimeOffset _now = timeProvider.GetUtcNow();
 
     public async Task<ApiResponse> JoinRoom(JoinRoomDto dto, CancellationToken ct)
     {
         var groupingKey = dto.RoomId.ToString();
-        var req = new MessageBusJoinRoomRequest(_now.DateTime, userService.UserPublicId, groupingKey, dto.RoomId);
+        var req = new MessageBusJoinRoomRequest
+        {
+            CreatedOn = timeProvider.GetUtcNow().DateTime,
+            CreatedBy = userService.UserPublicId,
+            GroupingKey = groupingKey,
+            RoomId = dto.RoomId
+        };
         await messageBus.JoinRoom(req, ct);
         return new ApiResponse();
     }
@@ -19,7 +24,14 @@ public class ChatRoomService(
     public async Task<ApiResponse> LeaveRoom(LeaveRoomDto dto, CancellationToken ct)
     {
         var groupingKey = dto.RoomId.ToString();
-        var req = new MessageBusLeaveRoomRequest(_now.DateTime, userService.UserPublicId, groupingKey, dto.RoomId);
+        var req = new MessageBusLeaveRoomRequest
+        {
+            CreatedOn = timeProvider.GetUtcNow().DateTime,
+            CreatedBy = userService.UserPublicId,
+            GroupingKey = groupingKey,
+            RoomId = dto.RoomId
+        };
+
         await messageBus.LeaveRoom(req, ct);
         return new ApiResponse();
     }
@@ -30,8 +42,14 @@ public class ChatRoomService(
         var sanitizedName = sanitizer.Sanitize(dto.Name);
         var sanitizedDescription = sanitizer.Sanitize(dto.Description);
 
-        var req = 
-            new MessageBusCreateRoomRequest(_now.DateTime, userService.UserPublicId, groupingKey, sanitizedName, sanitizedDescription);
+        var req = new MessageBusCreateRoomRequest
+            {
+                CreatedOn = timeProvider.GetUtcNow().DateTime,
+                CreatedBy = userService.UserPublicId,
+                GroupingKey = groupingKey,
+                Name = sanitizedName,
+                Description = sanitizedDescription
+            };
 
         await messageBus.CreateRoom(req, ct);
         return new ApiResponse();
@@ -43,8 +61,15 @@ public class ChatRoomService(
         var sanitizedName = sanitizer.Sanitize(dto.Name);
         var sanitizedDescription = sanitizer.Sanitize(dto.Description);
 
-        var req = 
-            new MessageBusEditRoomRequest(_now.DateTime, userService.UserPublicId, groupingKey, dto.RoomId, sanitizedName, sanitizedDescription);
+        var req = new MessageBusEditRoomRequest
+        {
+            CreatedOn = timeProvider.GetUtcNow().DateTime,
+            CreatedBy = userService.UserPublicId,
+            GroupingKey = groupingKey,
+            RoomId = dto.RoomId,
+            Name = sanitizedName,
+            Description = sanitizedDescription
+        };
 
         await messageBus.EditRoom(req, ct);
         return new ApiResponse();
@@ -53,7 +78,13 @@ public class ChatRoomService(
     public async Task<ApiResponse> DeleteRoom(DeleteRoomDto dto, CancellationToken ct)
     {
         var groupingKey = dto.RoomId.ToString();
-        var req = new MessageBusDeleteRoomRequest(_now.DateTime, userService.UserPublicId, groupingKey, dto.RoomId);
+        var req = new MessageBusDeleteRoomRequest()
+        {
+            CreatedOn = timeProvider.GetUtcNow().DateTime,
+            CreatedBy = userService.UserPublicId,
+            GroupingKey = groupingKey,
+            RoomId = dto.RoomId
+        };
 
         await messageBus.DeleteRoom(req, ct);
         return new ApiResponse();

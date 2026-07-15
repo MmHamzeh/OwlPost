@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using OwlPost.Services;
 
 namespace OwlPost.Controllers;
 
