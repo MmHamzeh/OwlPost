@@ -7,13 +7,13 @@ internal interface IExchangeManager : IAsyncDisposable
 
 internal class ExchangeManager : IExchangeManager
 {
-    private readonly IAppLogger<ExchangeManager> _logger;
+    private readonly ILogger<ExchangeManager> _logger;
     private readonly IConnectionManager _connection;
     private readonly RabbitMqOptions _rabbitMqOptions;
     private readonly SemaphoreSlim _sync = new(1, 1);
     private IChannel? _channel;
 
-    internal ExchangeManager(IAppLogger<ExchangeManager> logger, IOptions<RabbitMqOptions> options, IConnectionManager connection)
+    internal ExchangeManager(ILogger<ExchangeManager> logger, IOptions<RabbitMqOptions> options, IConnectionManager connection)
     {
         _logger = logger;
         _rabbitMqOptions = options.Value;

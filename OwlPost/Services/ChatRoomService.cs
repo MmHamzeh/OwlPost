@@ -13,7 +13,7 @@ public class ChatRoomService(
         var req = new MessageBusJoinRoomRequest
         {
             CreatedOn = timeProvider.GetUtcNow().DateTime,
-            CreatedBy = userService.UserPublicId,
+            CreatedBy = userService.UserId,
             GroupingKey = groupingKey,
             RoomId = dto.RoomId
         };
@@ -27,7 +27,7 @@ public class ChatRoomService(
         var req = new MessageBusLeaveRoomRequest
         {
             CreatedOn = timeProvider.GetUtcNow().DateTime,
-            CreatedBy = userService.UserPublicId,
+            CreatedBy = userService.UserId,
             GroupingKey = groupingKey,
             RoomId = dto.RoomId
         };
@@ -45,7 +45,7 @@ public class ChatRoomService(
         var req = new MessageBusCreateRoomRequest
             {
                 CreatedOn = timeProvider.GetUtcNow().DateTime,
-                CreatedBy = userService.UserPublicId,
+                CreatedBy = userService.UserId,
                 GroupingKey = groupingKey,
                 Name = sanitizedName,
                 Description = sanitizedDescription
@@ -64,7 +64,7 @@ public class ChatRoomService(
         var req = new MessageBusEditRoomRequest
         {
             CreatedOn = timeProvider.GetUtcNow().DateTime,
-            CreatedBy = userService.UserPublicId,
+            CreatedBy = userService.UserId,
             GroupingKey = groupingKey,
             RoomId = dto.RoomId,
             Name = sanitizedName,
@@ -81,7 +81,7 @@ public class ChatRoomService(
         var req = new MessageBusDeleteRoomRequest()
         {
             CreatedOn = timeProvider.GetUtcNow().DateTime,
-            CreatedBy = userService.UserPublicId,
+            CreatedBy = userService.UserId,
             GroupingKey = groupingKey,
             RoomId = dto.RoomId
         };

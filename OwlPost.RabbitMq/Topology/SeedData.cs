@@ -5,27 +5,11 @@ namespace OwlPost.RabbitMq.Topology;
 
 internal static class SeedData
 {
-    #region Const data
-
-    internal const string ChatExchangeName = "chat.exchange";
-    internal const string ChatQueueName = "chat.queue";
-    internal const string ChatRoutingKey = "chat.queue";
-
-    internal const string NotificationExchangeName = "notification.exchange";
-    internal const string NotificationQueueName = "notification.queue";
-    internal const string NotificationRoutingKey = "notification.queue";
-    
-    internal const string RoomExchangeName = "room.exchange";
-    internal const string RoomQueueName = "room.queue";
-    internal const string RoomRoutingKey = "room.queue";    
-
-    #endregion
-
     private static List<ExchangeOption> ExchangeOptions =>
     [
         new()
         {
-            Name = ChatExchangeName,
+            Name = ConstData.ChatExchangeName,
             ExchangeTypeEnm = ExchangeTypeEnm.Direct,
             Durable = true,
             AutoDelete = false,
@@ -33,7 +17,7 @@ internal static class SeedData
         },
         new()
         {
-            Name = NotificationExchangeName,
+            Name = ConstData.NotificationExchangeName,
             ExchangeTypeEnm = ExchangeTypeEnm.Direct,
             Durable = true,
             AutoDelete = false,
@@ -41,7 +25,7 @@ internal static class SeedData
         },
         new()
         {
-            Name = RoomExchangeName,
+            Name = ConstData.RoomExchangeName,
             ExchangeTypeEnm = ExchangeTypeEnm.Direct,
             Durable = true,
             AutoDelete = false,
@@ -85,33 +69,33 @@ internal static class SeedData
     internal static (List<ExchangeOption>, List<QueueOption>) GetExchangeOptionQueueOption()
     {
 
-        var chatExchange = ExchangeOptions.First(e => e.Name == ChatExchangeName);
-        var notificationExchange = ExchangeOptions.First(e => e.Name == NotificationExchangeName);
-        var roomExchange = ExchangeOptions.First(e => e.Name == RoomExchangeName);
+        var chatExchange = ExchangeOptions.First(e => e.Name == ConstData.ChatExchangeName);
+        var notificationExchange = ExchangeOptions.First(e => e.Name == ConstData.NotificationExchangeName);
+        var roomExchange = ExchangeOptions.First(e => e.Name == ConstData.RoomExchangeName);
 
         #region QueueOption
 
-        var chatQueue = new QueueOption(chatExchange, routingKey: ChatRoutingKey)
+        var chatQueue = new QueueOption(chatExchange, routingKey: ConstData.ChatRoutingKey)
         {
-            Name = ChatQueueName,
+            Name = ConstData.ChatQueueName,
             Durable = true,
             Exclusive = true,
             AutoDelete = false,
             Arguments = null,
         };
 
-        var notificationQueue = new QueueOption(notificationExchange, routingKey: NotificationRoutingKey)
+        var notificationQueue = new QueueOption(notificationExchange, routingKey: ConstData.NotificationRoutingKey)
         {
-            Name = NotificationQueueName,
+            Name = ConstData.NotificationQueueName,
             Durable = false,
             Exclusive = true,
             AutoDelete = false,
             Arguments = null,
         };
 
-        var roomQueue = new QueueOption(roomExchange, routingKey: RoomRoutingKey)
+        var roomQueue = new QueueOption(roomExchange, routingKey: ConstData.RoomRoutingKey)
         {
-            Name = RoomQueueName,
+            Name = ConstData.RoomQueueName,
             Durable = true,
             Exclusive = true,
             AutoDelete = false,

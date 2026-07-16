@@ -5,7 +5,7 @@ internal interface IConnectionManager : IAsyncDisposable
     ValueTask<IConnection> GetConnectionAsync();
 }
 
-internal sealed class ConnectionManager(IAppLogger<ConnectionManager> logger, IOptions<RabbitMqOptions> options)
+internal sealed class ConnectionManager(ILogger<ConnectionManager> logger, IOptions<RabbitMqOptions> options)
     : IConnectionManager
 {
     private IConnection? _connection;

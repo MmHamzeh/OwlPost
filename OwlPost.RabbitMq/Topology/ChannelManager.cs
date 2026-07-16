@@ -8,14 +8,14 @@ internal interface IChannelManager : IAsyncDisposable
 
 internal class ChannelManager : IChannelManager
 {
-    private readonly IAppLogger<ChannelManager> _logger;
+    private readonly ILogger<ChannelManager> _logger;
     private readonly IConnectionManager _connectionManager;
     private IChannel? _publishChannel;
     private IChannel? _consumeChannel;
     private readonly SemaphoreSlim _sync = new(1, 1);
     private readonly RabbitMqOptions _rabbitMqOptions;
 
-    internal ChannelManager(IAppLogger<ChannelManager> logger, IOptions<RabbitMqOptions> options, IConnectionManager connectionManager)
+    internal ChannelManager(ILogger<ChannelManager> logger, IOptions<RabbitMqOptions> options, IConnectionManager connectionManager)
     {
         _logger = logger;
         _connectionManager = connectionManager;

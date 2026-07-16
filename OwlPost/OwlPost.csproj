@@ -27,6 +27,7 @@
     <ProjectReference Include="..\OwlPost.RabbitMq\OwlPost.RabbitMq.csproj" />
     <ProjectReference Include="..\OwlPost.Sanitizer\OwlPost.Sanitizer.csproj" />
     <ProjectReference Include="..\OwlPost.Serializer\OwlPost.Serializer.csproj" />
+    <ProjectReference Include="..\OwlPost.SignalR\OwlPost.SignalR.csproj" />
     <ProjectReference Include="..\OwlPost.Sql\OwlPost.Sql.csproj" />
   </ItemGroup>
 

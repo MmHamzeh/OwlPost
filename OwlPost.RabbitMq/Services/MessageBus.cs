@@ -4,17 +4,19 @@ internal class MessageBus : IMessageBus, IAsyncDisposable
 {
     #region Fields and Ctor
 
-    private readonly IAppLogger<MessageBus> _logger;
+    private readonly ILogger<MessageBus> _logger;
     private readonly IChannelManager _channelManager;
     private IChannel? _channel;
     private readonly SemaphoreSlim _semaphore;
     private readonly ISerializer _serializer;
+    private readonly TimeProvider _timeProvider;
 
-    internal MessageBus(IAppLogger<MessageBus> logger, IChannelManager channelManager, ISerializer serializer)
+    internal MessageBus(ILogger<MessageBus> logger, IChannelManager channelManager, ISerializer serializer, TimeProvider timeProvider)
     {
         _logger = logger;
         _channelManager = channelManager;
         _serializer = serializer;
+        _timeProvider = timeProvider;
         _semaphore = new SemaphoreSlim(1, 1);
     }
 
@@ -23,13 +25,13 @@ internal class MessageBus : IMessageBus, IAsyncDisposable
     #region Message Section
 
     public async Task<IMessageBusResponse> SendMessage(MessageBusSendMessageRequest request, CancellationToken ct)
-        => await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
+        => await PublishMessageAsync(request, isPersistent: true, ConstData.ChatExchangeName, ct);
 
     public async Task<IMessageBusResponse> DeleteMessage(MessageBusDeleteMessageRequest request, CancellationToken ct)
-        => await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
+        => await PublishMessageAsync(request, isPersistent: true, ConstData.ChatExchangeName, ct);
 
     public async Task<IMessageBusResponse> EditMessage(MessageBusEditMessageRequest request, CancellationToken ct)
-        => await PublishMessageAsync(request, isPersistent: true, SeedData.ChatExchangeName, ct);
+        => await PublishMessageAsync(request, isPersistent: true, ConstData.ChatExchangeName, ct);
 
     #endregion
 
@@ -37,19 +39,19 @@ internal class MessageBus : IMessageBus, IAsyncDisposable
 
 
     public async Task<IMessageBusResponse> JoinRoom(MessageBusJoinRoomRequest request, CancellationToken ct)
-        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+        => await PublishMessageAsync(request, isPersistent: true, ConstData.RoomExchangeName, ct);
 
     public async Task<IMessageBusResponse> LeaveRoom(MessageBusLeaveRoomRequest request, CancellationToken ct)
-        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+        => await PublishMessageAsync(request, isPersistent: true, ConstData.RoomExchangeName, ct);
 
     public async Task<IMessageBusResponse> CreateRoom(MessageBusCreateRoomRequest request, CancellationToken ct)
-        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+        => await PublishMessageAsync(request, isPersistent: true, ConstData.RoomExchangeName, ct);
 
     public async Task<IMessageBusResponse> EditRoom(MessageBusEditRoomRequest request, CancellationToken ct)
-        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+        => await PublishMessageAsync(request, isPersistent: true, ConstData.RoomExchangeName, ct);
 
     public async Task<IMessageBusResponse> DeleteRoom(MessageBusDeleteRoomRequest request, CancellationToken ct)
-        => await PublishMessageAsync(request, isPersistent: true, SeedData.RoomExchangeName, ct);
+        => await PublishMessageAsync(request, isPersistent: true, ConstData.RoomExchangeName, ct);
 
     #endregion
 
@@ -65,6 +67,11 @@ internal class MessageBus : IMessageBus, IAsyncDisposable
 
             var content = _serializer.Serialize(request);
 
+            var basicPropertiesHeaders = new Dictionary<string, object?>
+            {
+                { ConstData.BasicPropertiesHeaders_MessageType, request.GetType().Name }
+            };
+
             var props = new BasicProperties
             {
                 ContentType = _serializer.ContentType,
@@ -73,7 +80,9 @@ internal class MessageBus : IMessageBus, IAsyncDisposable
                 DeliveryMode = isPersistent
                     ? DeliveryModes.Persistent
                     : DeliveryModes.Transient,
-                Persistent = isPersistent
+                Persistent = isPersistent,
+                Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds()),
+                Headers = basicPropertiesHeaders
             };
 
             await channel.BasicPublishAsync(

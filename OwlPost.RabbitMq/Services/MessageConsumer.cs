@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client.Events;
 using System.Text;
-using System.Text.Json;
 
 namespace OwlPost.RabbitMq.Services;
 
@@ -10,30 +9,29 @@ internal sealed class MessageConsumer : BackgroundService
 {
     #region Fields and Ctor
 
-    private readonly IAppLogger<MessageConsumer> _logger;
+    private readonly ILogger<MessageConsumer> _logger;
     private readonly IChannelManager _channelManager;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly RabbitMqOptions _options;
     private readonly uint _prefetchSize;
     private readonly ushort _prefetchCount;
     private readonly IDictionary<string, IChannel> _channelsPerQueue;
-    private readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
+    private readonly ISerializer _serializer;
 
     internal MessageConsumer(
-        IAppLogger<MessageConsumer> logger,
+        ILogger<MessageConsumer> logger,
         IChannelManager channelManager,
         IOptions<RabbitMqOptions> options,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        ISerializer serializer)
     {
         _logger = logger;
         _channelManager = channelManager;
         _scopeFactory = scopeFactory;
+        _serializer = serializer;
         _options = options.Value;
-        _channelsPerQueue = new Dictionary<string, IChannel>(_options.Queue.Count);
 
+        _channelsPerQueue = new Dictionary<string, IChannel>(_options.Queue.Count);
         _prefetchSize = _options.Channel.PrefetchSize;
         _prefetchCount = _options.Channel.PrefetchCount;
     }
@@ -102,39 +100,7 @@ internal sealed class MessageConsumer : BackgroundService
 
         var consumer = new AsyncEventingBasicConsumer(channel);
 
-        consumer.ReceivedAsync += async (sender, ea) =>
-        {
-            var consumerChannel = ((AsyncEventingBasicConsumer)sender).Channel;
-
-            try
-            {
-                var body = ea.Body.ToArray();
-                var json = Encoding.UTF8.GetString(body);
-
-                _logger.LogDebug(
-                    "Message received from {Queue}",
-                    queueName);
-
-                await ProcessMessageAsync(json);
-
-                await consumerChannel.BasicAckAsync(
-                    deliveryTag: ea.DeliveryTag,
-                    multiple: false,
-                    ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Error processing message from queue {Queue}",
-                    queueName);
-
-                await consumerChannel.BasicNackAsync(
-                    deliveryTag: ea.DeliveryTag,
-                    multiple: false,
-                    requeue: false,
-                    ct);
-            }
-        };
+        AddReceivingEvent(queueName, consumer, channel, ct);
 
         await channel.BasicConsumeAsync(
             queue: queueName,
@@ -144,23 +110,120 @@ internal sealed class MessageConsumer : BackgroundService
             cancellationToken: ct);
     }
 
-    private async Task ProcessMessageAsync(string json)
+    private void AddReceivingEvent(string queueName, AsyncEventingBasicConsumer consumer, IChannel channel, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(json))
-            throw new InvalidOperationException("Received empty message payload");
+        consumer.ReceivedAsync += async (sender, ea) =>
+        {
+            var consumerChannel = ((AsyncEventingBasicConsumer)sender).Channel;
 
-        var chatMessage = JsonSerializer.Deserialize<ChatMessage>(json, _jsonOptions);
+            try
+            {
+                if (ea.Body.IsEmpty || ea.Body.Length == 0)
+                {
+                    _logger.LogWarning("Received empty message from queue {Queue}", queueName);
+                    return;
+                }
 
-        if (chatMessage is null)
-            throw new InvalidOperationException("Failed to deserialize ChatMessage");
+                var body = ea.Body.ToArray();
 
-        await using var scope = _scopeFactory.CreateAsyncScope();
+                var data = DeserializeRequest(body, ea.BasicProperties);
 
-        var unitOfWork =
-            scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                if (data is null)
+                {
+                    _logger.LogWarning("Failed to deserialize message from queue {Queue}", queueName);
+                    return;
+                }
 
-        await unitOfWork.MessageRepository.Add(chatMessage, saveChanges: true, CancellationToken.None);
+                _logger.LogDebug("Message received from {Queue}", data);
 
+                await using var scope = _scopeFactory.CreateAsyncScope();
+
+                var processor = scope.ServiceProvider
+                    .GetRequiredService<IConsumedMessageProcessor>();
+
+                await processor.ProcessAsync(data, ct);
+
+                await consumerChannel.BasicAckAsync(
+                    deliveryTag: ea.DeliveryTag,
+                    multiple: false,
+                    CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error processing message from queue {Queue}. Exchange: {Exchange}, RoutingKey: {RoutingKey}",
+                    queueName,
+                    ea.Exchange,
+                    ea.RoutingKey);
+
+                try
+                {
+                    await channel.BasicNackAsync(
+                        deliveryTag: ea.DeliveryTag,
+                        multiple: false,
+                        requeue: false,
+                        cancellationToken: CancellationToken.None);
+                }
+                catch (Exception nackEx)
+                {
+                    _logger.LogError(
+                        nackEx,
+                        "Failed to nack message from queue {Queue}",
+                        queueName);
+                }
+            }
+        };
+    }
+    private IMessageBusRequest? DeserializeRequest(byte[] body, IReadOnlyBasicProperties? properties)
+    {
+        var messageType = GetMessageType(properties);
+
+        return messageType switch
+        {
+            nameof(MessageBusSendMessageRequest) =>
+                _serializer.Deserialize<MessageBusSendMessageRequest>(body),
+
+            nameof(MessageBusEditMessageRequest) =>
+                _serializer.Deserialize<MessageBusEditMessageRequest>(body),
+
+            nameof(MessageBusDeleteMessageRequest) =>
+                _serializer.Deserialize<MessageBusDeleteMessageRequest>(body),
+
+            nameof(MessageBusCreateRoomRequest) =>
+                _serializer.Deserialize<MessageBusCreateRoomRequest>(body),
+
+            nameof(MessageBusEditRoomRequest) =>
+                _serializer.Deserialize<MessageBusEditRoomRequest>(body),
+
+            nameof(MessageBusDeleteRoomRequest) =>
+                _serializer.Deserialize<MessageBusDeleteRoomRequest>(body),
+
+            nameof(MessageBusJoinRoomRequest) =>
+                _serializer.Deserialize<MessageBusJoinRoomRequest>(body),
+
+            nameof(MessageBusLeaveRoomRequest) =>
+                _serializer.Deserialize<MessageBusLeaveRoomRequest>(body),
+
+            _ => throw new NotSupportedException(
+                $"Unsupported message-type header: {messageType ?? "<null>"}")
+        };
+    }
+
+    private static string? GetMessageType(IReadOnlyBasicProperties? properties)
+    {
+        if (properties?.Headers is null)
+            return null;
+
+        if (!properties.Headers.TryGetValue(ConstData.BasicPropertiesHeaders_MessageType, out var raw))
+            return null;
+
+        return raw switch
+        {
+            byte[] bytes => Encoding.UTF8.GetString(bytes),
+            string s => s,
+            _ => raw.ToString()
+        };
     }
 
     #endregion

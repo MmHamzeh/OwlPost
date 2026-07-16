@@ -3,12 +3,9 @@
 public class MessageRepository(OwlPostDbContext context) : IMessageRepository
 {
 
-    public async Task Add(ChatMessage message, bool saveChanges, CancellationToken ct)
+    public async Task Add(ChatMessage message, CancellationToken ct)
     {
         await context.ChatMessages.AddAsync(message, ct);
-
-        if (saveChanges)
-            await context.SaveChangesAsync(ct);
     }
 
     public async Task<Guid?> GetUserMessageConcurrencyToken(Guid roomPublicId, Guid messagePublicId, Guid userPublicId, CancellationToken ct)

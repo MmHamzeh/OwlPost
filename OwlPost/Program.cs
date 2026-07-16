@@ -1,6 +1,8 @@
 using OwlPost.RabbitMq;
 using OwlPost.Sanitizer;
 using OwlPost.Serializer;
+using OwlPost.SignalR;
+using OwlPost.SignalR.Hubs;
 using OwlPost.Sql;
 
 namespace OwlPost;
@@ -21,12 +23,14 @@ public class Program
         builder.Services.AddOwlPostSerializer();
         builder.Services.AddRabbitMq(builder.Configuration);
         builder.Services.AddSqlDatabase(builder.Configuration);
+        builder.Services.AddOwlPostSignalR();
 
         //TODO: create a new project for Authentication, Authorization
         builder.Services.AddScoped<IUserService, OwlPost.Services.UserService>();
 
         builder.Services.AddScoped<MessagingService>();
         builder.Services.AddScoped<ChatRoomService>();
+        builder.Services.AddScoped<IConsumedMessageProcessor, ConsumedMessageProcessor>();
 
         var app = builder.Build();
 
@@ -40,6 +44,9 @@ public class Program
         app.UseAuthorization();
 
         app.MapControllers();
+
+        app.MapHub<ChatHub>("/hubs/chat");
+
 
         app.Run();
     }

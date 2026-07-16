@@ -2,6 +2,20 @@
 
 public class ChatMessage : IDbModel
 {
+    #region Ctor
+
+    public ChatMessage()
+    {
+        PublicId = Guid.CreateVersion7();
+
+        Replies = [];
+        ChatMessageHistories = [];
+    }
+
+    #endregion
+
+
+
     #region IDbModel properties
 
     public long CreatedBy { get; set; }
@@ -23,7 +37,7 @@ public class ChatMessage : IDbModel
 
     #region Relations
 
-    public required User User { get; set; }
+    public User User { get; set; }
 
     // parent message (reply)
     public long? ParentMessageId { get; set; }
@@ -33,7 +47,7 @@ public class ChatMessage : IDbModel
     public ICollection<ChatMessage> Replies { get; set; } = [];
 
     public long ChatRoomId { get; set; }
-    public required ChatRoom ChatRoom { get; set; }
+    public ChatRoom ChatRoom { get; set; }
 
     public ICollection<ChatMessageHistory> ChatMessageHistories { get; set; } = [];
 

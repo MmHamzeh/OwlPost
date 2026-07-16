@@ -13,18 +13,7 @@ public class Serializer : ISerializer
 
     private readonly ICompressor _compressor;
     private readonly RecyclableMemoryStreamManager _streamManager;
-
-    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        PropertyNameCaseInsensitive = false,
-        Converters =
-        {
-            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
-        }
-    };
-
+    
     public Serializer(RecyclableMemoryStreamManager streamManager)
     {
         const LZ4Level lZ4Level = LZ4Level.L03_HC;
@@ -49,7 +38,7 @@ public class Serializer : ISerializer
             return [];
 
         using var tempStream = _streamManager.GetStream("Serializer_Sync");
-        JsonSerializer.Serialize(tempStream, plainObject, JsonSerializerOptions);
+        JsonSerializer.Serialize(tempStream, plainObject, SerializerOptions.JsonSerializerOptions);
         tempStream.Position = 0;
         return _compressor.Compress(tempStream);
     }
@@ -65,7 +54,7 @@ public class Serializer : ISerializer
         _compressor.Decompress(compressedStream, decompressedStream);
         decompressedStream.Position = 0;
 
-        return JsonSerializer.Deserialize<T>(decompressedStream, JsonSerializerOptions);
+        return JsonSerializer.Deserialize<T>(decompressedStream, SerializerOptions.JsonSerializerOptions);
     }
 
     public async Task<Stream> SerializeAsync<T>(T plainObject, CancellationToken ct = default)
@@ -78,7 +67,7 @@ public class Serializer : ISerializer
         await JsonSerializer.SerializeAsync(
             jsonTempStream,
             plainObject,
-            JsonSerializerOptions,
+            SerializerOptions.JsonSerializerOptions,
             ct).ConfigureAwait(false);
 
         jsonTempStream.Position = 0;
@@ -122,7 +111,7 @@ public class Serializer : ISerializer
 
         return await JsonSerializer.DeserializeAsync<T>(
             decompressedStream,
-            JsonSerializerOptions,
+            SerializerOptions.JsonSerializerOptions,
             ct).ConfigureAwait(false);
     }
 

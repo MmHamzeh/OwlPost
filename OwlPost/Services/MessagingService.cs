@@ -23,7 +23,7 @@ public class MessagingService(
         var req = new MessageBusSendMessageRequest
         {
             CreatedOn = timeProvider.GetUtcNow().DateTime, 
-            CreatedBy = userService.UserPublicId,
+            CreatedBy = userService.UserId,
             GroupingKey = groupingKey,
             Content = sanitizedContent,
             RoomId = dto.RoomId
@@ -56,7 +56,7 @@ public class MessagingService(
         var req = new MessageBusEditMessageRequest
         {
             CreatedOn = timeProvider.GetUtcNow().DateTime,
-            CreatedBy = userService.UserPublicId,
+            CreatedBy = userService.UserId,
             GroupingKey = groupingKey,
             Content = sanitizedContent,
             RoomId = dto.RoomId,
@@ -89,7 +89,7 @@ public class MessagingService(
         var req = new MessageBusDeleteMessageRequest
         {
             CreatedOn = timeProvider.GetUtcNow().DateTime,
-            CreatedBy = userService.UserPublicId,
+            CreatedBy = userService.UserId,
             GroupingKey = groupingKey,
             RoomId = dto.RoomId,
             ConcurrencyToken = concurrencyToken.Value,
