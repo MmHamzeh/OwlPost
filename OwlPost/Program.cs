@@ -31,6 +31,8 @@ public class Program
         builder.Services.AddScoped<MessagingService>();
         builder.Services.AddScoped<ChatRoomService>();
         builder.Services.AddScoped<IConsumedMessageProcessor, ConsumedMessageProcessor>();
+        builder.Services.AddScoped<IMessagingPermissionService, MessagingPermissionService>();
+        builder.Services.AddScoped<IRoomPermissionService, RoomPermissionService>();
 
         var app = builder.Build();
 

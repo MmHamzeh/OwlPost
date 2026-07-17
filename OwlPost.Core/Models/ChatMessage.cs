@@ -27,7 +27,7 @@ public class ChatMessage : IDbModel
 
     #endregion
 
-
+    public bool IsDeleted { get; set; }
     public string Content { get; set; }
 
     /// <summary>

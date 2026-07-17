@@ -2,8 +2,27 @@
 
 public class ChatMessageHistory
 {
+    #region Ctor
+
+    public ChatMessageHistory()
+    {
+        PublicId = Guid.CreateVersion7();
+    }
+
+    public ChatMessageHistory(ChatMessage message, long currentUserId, TimeProvider timeProvider) 
+        : this()
+    {
+        ChatMessage = message;
+        ChatMessageId = message.Id;
+        OldContent = message.Content;
+        CreatedOn = timeProvider.GetUtcNow().DateTime;
+        CreatedBy = currentUserId;
+    }
+
+    #endregion
+
     #region IDbModel properties
-    
+
     public long CreatedBy { get; set; }
     public DateTime CreatedOn { get; set; }
     public long? ModifiedBy { get; set; }
@@ -13,6 +32,7 @@ public class ChatMessageHistory
 
     #endregion
 
+    public string OldContent { get; set; }
 
     #region Relations
 

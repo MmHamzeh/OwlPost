@@ -19,6 +19,8 @@ internal sealed class MessageConsumer : BackgroundService
     private readonly ISerializer _serializer;
 
     internal MessageConsumer(
+
+
         ILogger<MessageConsumer> logger,
         IChannelManager channelManager,
         IOptions<RabbitMqOptions> options,
@@ -60,7 +62,7 @@ internal sealed class MessageConsumer : BackgroundService
     }
 
 
-    public override async Task StopAsync(CancellationToken cancellationToken)
+    public override async Task StopAsync(CancellationToken ct)
     {
         await Task.WhenAll(
             _channelsPerQueue.Values.Select(async channel =>
@@ -68,7 +70,7 @@ internal sealed class MessageConsumer : BackgroundService
                 try
                 {
                     if (channel.IsOpen)
-                        await channel.CloseAsync(cancellationToken);
+                        await channel.CloseAsync(ct);
 
                     await channel.DisposeAsync();
                 }
@@ -79,7 +81,7 @@ internal sealed class MessageConsumer : BackgroundService
                 }
             }));
 
-        await base.StopAsync(cancellationToken);
+        await base.StopAsync(ct);
     }
 
 
@@ -124,24 +126,23 @@ internal sealed class MessageConsumer : BackgroundService
                     return;
                 }
 
-                var body = ea.Body.ToArray();
+                var serializedData = ea.Body.ToArray();
+                var structuredData = DeserializeRequest(serializedData, ea.BasicProperties);
 
-                var data = DeserializeRequest(body, ea.BasicProperties);
-
-                if (data is null)
+                if (structuredData is null)
                 {
                     _logger.LogWarning("Failed to deserialize message from queue {Queue}", queueName);
                     return;
                 }
 
-                _logger.LogDebug("Message received from {Queue}", data);
+                _logger.LogDebug("Message received from {Queue}", structuredData);
 
                 await using var scope = _scopeFactory.CreateAsyncScope();
 
                 var processor = scope.ServiceProvider
                     .GetRequiredService<IConsumedMessageProcessor>();
 
-                await processor.ProcessAsync(data, ct);
+                await processor.ProcessAsync(structuredData, ct);
 
                 await consumerChannel.BasicAckAsync(
                     deliveryTag: ea.DeliveryTag,
@@ -175,6 +176,7 @@ internal sealed class MessageConsumer : BackgroundService
             }
         };
     }
+    
     private IMessageBusRequest? DeserializeRequest(byte[] body, IReadOnlyBasicProperties? properties)
     {
         var messageType = GetMessageType(properties);
@@ -222,7 +224,7 @@ internal sealed class MessageConsumer : BackgroundService
         {
             byte[] bytes => Encoding.UTF8.GetString(bytes),
             string s => s,
-            _ => raw.ToString()
+            _ => raw?.ToString()
         };
     }
 

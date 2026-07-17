@@ -64,36 +64,30 @@ public sealed class ConsumedMessageProcessor(
         };
 
         await chatMessageService.AddNewMessage(entity, ct);
-        await chatHubService.NotifyMessageAdded(entity, ct);
+        await chatHubService.NotifyMessageAdded(entity, CancellationToken.None);
 
         logger.LogTrace("SendMessage processed for room {RoomId}", request.RoomId);
     }
 
     private async Task HandleEditMessageAsync(MessageBusEditMessageRequest request,CancellationToken ct)
     {
-        logger.LogInformation("Processing EditMessage for message {MessageId}", request.MessageId);
+        logger.LogTrace("Processing EditMessage for message {MessageId}", request.MessageId);
 
-        // TODO:
-        // - load existing message
-        // - validate concurrency token
-        // - update content
-        // - save changes
-        // - notify SignalR
+        await chatMessageService.EditMessage(request.MessageId, request.Content, ct);
+        //TODO: SignalR notification for message edit can be added here if needed
 
+        logger.LogTrace("EditMessage processed for message {MessageId}", request.MessageId);
         await Task.CompletedTask;
     }
 
     private async Task HandleDeleteMessageAsync(MessageBusDeleteMessageRequest request, CancellationToken ct)
     {
-        logger.LogInformation("Processing DeleteMessage for message {MessageId}", request.MessageId);
+        logger.LogTrace("Processing DeleteMessage for message {MessageId}", request.MessageId);
 
-        // TODO:
-        // - load existing message
-        // - validate concurrency token
-        // - delete message
-        // - save changes
-        // - notify SignalR
+        await chatMessageService.DeleteMessage(request.MessageId, ct);
+        //TODO: SignalR notification for message deletion can be added here if needed
 
+        logger.LogTrace("DeleteMessage processed for message {MessageId}", request.MessageId);
         await Task.CompletedTask;
     }
 
