@@ -1,5 +1,4 @@
 using OwlPost.RabbitMq;
-using OwlPost.RateLimitingConfigs;
 using OwlPost.Sanitizer;
 using OwlPost.Serializer;
 using OwlPost.SignalR;

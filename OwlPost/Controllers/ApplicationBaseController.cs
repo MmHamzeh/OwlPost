@@ -1,6 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
-using OwlPost.RateLimitingConfigs;
 
 namespace OwlPost.Controllers;
 
