@@ -6,7 +6,7 @@ namespace OwlPost.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[EnableRateLimiting(RateLimitPolicies.ApiTokenBucket)]
+[EnableRateLimiting(RateLimitPolicies.Read)]
 //[DisableRateLimiting]
 public class ApplicationBaseController : ControllerBase
 {

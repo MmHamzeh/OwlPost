@@ -4,86 +4,55 @@ using System.Threading.RateLimiting;
 
 namespace OwlPost.RateLimitingConfigs;
 
+
 public static class RateLimitingExtensions
 {
-    public static IServiceCollection AddApplicationRateLimiting(
-        this IServiceCollection services,
+    public static IServiceCollection AddApplicationRateLimiting(this IServiceCollection services,
         IConfiguration configuration)
     {
-        IConfigurationSection section =
-            configuration.GetRequiredSection(TokenBucketSettings.SectionName);
+        var section = configuration.GetRequiredSection("RateLimiting");
 
-        services
-            .AddOptions<TokenBucketSettings>()
+        services.AddOptions<RateLimitingOptions>()
             .Bind(section)
-            .ValidateDataAnnotations()
-            .Validate(
-                settings => settings.ReplenishmentPeriod > TimeSpan.Zero,
-                "ReplenishmentPeriod must be greater than zero.")
-            .Validate(
-                settings => settings.TokensPerPeriod <= settings.TokenLimit,
-                "TokensPerPeriod should not exceed TokenLimit.")
             .ValidateOnStart();
 
-        TokenBucketSettings settings =
-            section.Get<TokenBucketSettings>()
-            ?? throw new InvalidOperationException(
-                $"Configuration section '{TokenBucketSettings.SectionName}' is invalid.");
+        var options = section.Get<RateLimitingOptions>()
+                      ?? throw new InvalidOperationException("RateLimiting section is invalid.");
 
-        ValidateSettings(settings);
+        Validate(options);
 
-        services.AddRateLimiter(options =>
+        string defaultPolicyName = ResolveDefaultPolicyName(options);
+
+        services.AddRateLimiter(rateLimiterOptions =>
         {
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            rateLimiterOptions.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            options.OnRejected = async (context, cancellationToken) =>
+            rateLimiterOptions.OnRejected = async (context, cancellationToken) =>
             {
-                HttpContext httpContext = context.HttpContext;
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
 
-                httpContext.Response.StatusCode =
-                    StatusCodes.Status429TooManyRequests;
-
-                int? retryAfterSeconds = null;
-
-                if (context.Lease.TryGetMetadata(
-                        MetadataName.RetryAfter,
-                        out TimeSpan retryAfter))
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan retryAfter))
                 {
-                    retryAfterSeconds = Math.Max(
-                        1,
-                        (int)Math.Ceiling(retryAfter.TotalSeconds));
-
-                    httpContext.Response.Headers.RetryAfter =
-                        retryAfterSeconds.Value.ToString(
-                            CultureInfo.InvariantCulture);
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
+                            .ToString(CultureInfo.InvariantCulture);
                 }
 
-                ILogger logger = httpContext.RequestServices
-                    .GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("RateLimiting");
-
-                logger.LogWarning(
-                    "Request rejected by rate limiter. " +
-                    "Method: {Method}, Path: {Path}, Client: {Client}",
-                    httpContext.Request.Method,
-                    httpContext.Request.Path,
-                    GetPartitionKey(httpContext));
-
-                await httpContext.Response.WriteAsJsonAsync(
-                    new RateLimitErrorResponse
-                    {
-                        Status = StatusCodes.Status429TooManyRequests,
-                        Error = "TooManyRequests",
-                        Message = "The request rate limit has been exceeded.",
-                        RetryAfterSeconds = retryAfterSeconds,
-                        TraceId = httpContext.TraceIdentifier
-                    },
-                    cancellationToken);
+                await context.HttpContext.Response.WriteAsJsonAsync(new
+                {
+                    status = 429,
+                    error = "TooManyRequests",
+                    message = "The request rate limit has been exceeded.",
+                    traceId = context.HttpContext.TraceIdentifier
+                }, cancellationToken);
             };
 
-            options.AddPolicy(
-                RateLimitPolicies.ApiTokenBucket,
-                httpContext =>
+            foreach (var policy in options.Policies)
+            {
+                string policyName = policy.Key;
+                TokenBucketPolicyOptions policyOptions = policy.Value;
+
+                rateLimiterOptions.AddPolicy(policyName, httpContext =>
                 {
                     string partitionKey = GetPartitionKey(httpContext);
 
@@ -91,80 +60,87 @@ public static class RateLimitingExtensions
                         partitionKey,
                         _ => new TokenBucketRateLimiterOptions
                         {
-                            TokenLimit = settings.TokenLimit,
-                            TokensPerPeriod = settings.TokensPerPeriod,
-                            ReplenishmentPeriod =
-                                settings.ReplenishmentPeriod,
-                            QueueLimit = settings.QueueLimit,
-                            QueueProcessingOrder =
-                                settings.QueueProcessingOrder,
-                            AutoReplenishment =
-                                settings.AutoReplenishment
+                            TokenLimit = policyOptions.TokenLimit,
+                            TokensPerPeriod = policyOptions.TokensPerPeriod,
+                            ReplenishmentPeriod = policyOptions.ReplenishmentPeriod,
+                            QueueLimit = policyOptions.QueueLimit,
+                            QueueProcessingOrder = policyOptions.QueueProcessingOrder,
+                            AutoReplenishment = policyOptions.AutoReplenishment
                         });
                 });
+            }
+
+            // Default policy: if not explicitly chosen, use the one with the biggest bucket.
+            rateLimiterOptions.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            {
+                var chosen = options.Policies[defaultPolicyName];
+
+                string partitionKey = GetPartitionKey(context);
+
+                return RateLimitPartition.GetTokenBucketLimiter(
+                    partitionKey,
+                    _ => new TokenBucketRateLimiterOptions
+                    {
+                        TokenLimit = chosen.TokenLimit,
+                        TokensPerPeriod = chosen.TokensPerPeriod,
+                        ReplenishmentPeriod = chosen.ReplenishmentPeriod,
+                        QueueLimit = chosen.QueueLimit,
+                        QueueProcessingOrder = chosen.QueueProcessingOrder,
+                        AutoReplenishment = chosen.AutoReplenishment
+                    });
+            });
         });
 
         return services;
     }
 
+    private static string ResolveDefaultPolicyName(RateLimitingOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.DefaultPolicy) &&
+            options.Policies.ContainsKey(options.DefaultPolicy))
+        {
+            return options.DefaultPolicy;
+        }
+
+        // Default fallback: pick the policy with the biggest bucket.
+        // TokenLimit is the main signal; if tied, use TokensPerPeriod.
+        return options.Policies
+            .OrderByDescending(p => p.Value.TokenLimit)
+            .ThenByDescending(p => p.Value.TokensPerPeriod)
+            .First().Key;
+    }
+
     private static string GetPartitionKey(HttpContext context)
     {
-        // The authenticated user ID is preferred because it cannot be
-        // changed as easily as an arbitrary request header.
-        string? userId = context.User
-            .FindFirst(ClaimTypes.NameIdentifier)
-            ?.Value;
+        var userId = context.User?.Identity?.Name;
 
         if (!string.IsNullOrWhiteSpace(userId))
-        {
             return $"user:{userId}";
-        }
 
-        // Anonymous requests are limited by IP address.
-        string ipAddress =
-            context.Connection.RemoteIpAddress?.ToString()
-            ?? "unknown";
-
-        return $"ip:{ipAddress}";
+        return $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
     }
 
-    private static void ValidateSettings(TokenBucketSettings settings)
+    private static void Validate(RateLimitingOptions options)
     {
-        if (settings.TokenLimit <= 0)
+        if (options.Policies.Count == 0)
+            throw new InvalidOperationException("At least one rate limit policy must be defined.");
+
+        foreach (var (name, policy) in options.Policies)
         {
-            throw new InvalidOperationException(
-                "TokenLimit must be greater than zero.");
+            if (string.IsNullOrWhiteSpace(name))
+                throw new InvalidOperationException("Policy name cannot be empty.");
+
+            if (policy.TokenLimit <= 0)
+                throw new InvalidOperationException($"Policy '{name}': TokenLimit must be > 0.");
+
+            if (policy.TokensPerPeriod <= 0)
+                throw new InvalidOperationException($"Policy '{name}': TokensPerPeriod must be > 0.");
+
+            if (policy.ReplenishmentPeriod <= TimeSpan.Zero)
+                throw new InvalidOperationException($"Policy '{name}': ReplenishmentPeriod must be > 0.");
+
+            if (policy.QueueLimit < 0)
+                throw new InvalidOperationException($"Policy '{name}': QueueLimit cannot be negative.");
         }
-
-        if (settings.TokensPerPeriod <= 0)
-        {
-            throw new InvalidOperationException(
-                "TokensPerPeriod must be greater than zero.");
-        }
-
-        if (settings.ReplenishmentPeriod <= TimeSpan.Zero)
-        {
-            throw new InvalidOperationException(
-                "ReplenishmentPeriod must be greater than zero.");
-        }
-
-        if (settings.QueueLimit < 0)
-        {
-            throw new InvalidOperationException(
-                "QueueLimit cannot be negative.");
-        }
-    }
-
-    private sealed class RateLimitErrorResponse
-    {
-        public int Status { get; init; }
-
-        public required string Error { get; init; }
-
-        public required string Message { get; init; }
-
-        public int? RetryAfterSeconds { get; init; }
-
-        public required string TraceId { get; init; }
     }
 }

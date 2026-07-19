@@ -2,10 +2,9 @@
 
 public static class RateLimitPolicies
 {
-    public const string ApiTokenBucket = "api-token-bucket";
-
-    //public const string Read = "read-token-bucket";
-    //public const string Write = "write-token-bucket";
-    //public const string Authentication = "authentication-token-bucket";
-
+    public const string Read = "Read";
+    public const string Write = "Write";
+    public const string Authentication = "Authentication";
+    public const string Admin = "Admin";
+    public const string Upload = "Upload";
 }
