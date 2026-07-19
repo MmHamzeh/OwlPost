@@ -1,4 +1,5 @@
 using OwlPost.RabbitMq;
+using OwlPost.RateLimitingConfigs;
 using OwlPost.Sanitizer;
 using OwlPost.Serializer;
 using OwlPost.SignalR;
@@ -34,6 +35,9 @@ public class Program
         builder.Services.AddScoped<IMessagingPermissionService, MessagingPermissionService>();
         builder.Services.AddScoped<IRoomPermissionService, RoomPermissionService>();
 
+        builder.Services.AddApplicationRateLimiting(builder.Configuration);
+
+
         var app = builder.Build();
 
         if (app.Environment.IsDevelopment())
@@ -45,7 +49,11 @@ public class Program
 
         app.UseAuthorization();
 
-        app.MapControllers();
+        app.UseRateLimiter();
+
+        app.MapControllers()
+            //.RequireRateLimiting(RateLimitPolicies.ApiTokenBucket)
+            ;
 
         app.MapHub<ChatHub>("/hubs/chat");
 
