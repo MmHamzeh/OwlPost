@@ -1,0 +1,61 @@
+﻿# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+# Copy solution and project files for layer caching
+COPY ["OwlPost.slnx", "./"]
+COPY ["OwlPost.Core/*.csproj", "OwlPost.Core/"]
+COPY ["OwlPost.RabbitMq/*.csproj", "OwlPost.RabbitMq/"]
+COPY ["OwlPost.Sanitizer/*.csproj", "OwlPost.Sanitizer/"]
+COPY ["OwlPost.Serializer/*.csproj", "OwlPost.Serializer/"]
+COPY ["OwlPost.SignalR/*.csproj", "OwlPost.SignalR/"]
+COPY ["OwlPost.Sql/*.csproj", "OwlPost.Sql/"]
+COPY ["OwlPost/*.csproj", "OwlPost/"]
+
+RUN dotnet restore
+
+# Copy the remaining source code
+COPY . .
+
+# Build the main project (assuming 'OwlPost' is the startup project)
+RUN dotnet publish "OwlPost/OwlPost.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# Expose ports based on your application needs
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "OwlPost.dll"]# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+# Copy solution and project files for layer caching
+COPY ["OwlPost.slnx", "./"]
+COPY ["OwlPost.Core/*.csproj", "OwlPost.Core/"]
+COPY ["OwlPost.RabbitMq/*.csproj", "OwlPost.RabbitMq/"]
+COPY ["OwlPost.Sanitizer/*.csproj", "OwlPost.Sanitizer/"]
+COPY ["OwlPost.Serializer/*.csproj", "OwlPost.Serializer/"]
+COPY ["OwlPost.SignalR/*.csproj", "OwlPost.SignalR/"]
+COPY ["OwlPost.Sql/*.csproj", "OwlPost.Sql/"]
+COPY ["OwlPost/*.csproj", "OwlPost/"]
+
+RUN dotnet restore
+
+# Copy the remaining source code
+COPY . .
+
+# Build the main project (assuming 'OwlPost' is the startup project)
+RUN dotnet publish "OwlPost/OwlPost.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# Expose ports based on your application needs
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "OwlPost.dll"]

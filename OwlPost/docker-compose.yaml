@@ -1,0 +1,54 @@
+﻿version: '3.8'
+services:
+
+  mssql_db:
+    container_name: mssql_container
+    image: mcr.microsoft.com/mssql/server:2022-CU16-ubuntu-22.04
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      SA_PASSWORD: "StrongP@ssword"
+    ports:
+    - "1433:1433"
+    volumes:
+    - mssqlsystem:/var/opt/mssql
+    - ./config/mssql/entrypoint.sh:/usr/src/app/entrypoint.sh
+    - ./config/mssql/sql/:/usr/src/app/docker-entrypoint-initdb.d
+    working_dir: /usr/src/app
+    command: sh -c 'chmod +x ./entrypoint.sh; ./entrypoint.sh & /opt/mssql/bin/sqlservr;'
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$SA_PASSWORD" -C -Q "SELECT 1" -b -o /dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+    - env_net
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    hostname: rabbitmq-node
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: secretpassword123
+      RABBITMQ_DEFAULT_VHOST: myapp
+      RABBITMQ_ERLANG_COOKIE: "unique-secret-cookie"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 30s
+
+networks:
+  env_net:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  mssqlsystem:
